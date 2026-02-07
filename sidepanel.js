@@ -1,0 +1,335 @@
+// sidepanel.js
+
+let collecting = false;
+let history = [];
+let lastProcessedTimestamp = null;
+
+// UI Elements
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const toggleBtn = document.getElementById('toggleBtn');
+const savBtn = document.getElementById('savBtn');
+const dirBtn = document.getElementById('dirBtn');
+const footerStatus = document.getElementById('footerStatus');
+
+const elementCard = document.getElementById('elementCard');
+const elTag = document.getElementById('elTag');
+const elId = document.getElementById('elId');
+const elClass = document.getElementById('elClass');
+const elUrl = document.getElementById('elUrl');
+
+const selectorsGrid = document.getElementById('selectorsGrid');
+
+const historyPanel = document.getElementById('historyPanel');
+const historyList = document.getElementById('historyList');
+const historyCount = document.getElementById('historyCount');
+const exportBtn = document.getElementById('exportBtn');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+// ------------------------------------------------------------------------
+// Initialization
+// ------------------------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Load History
+    loadHistoryFromStorage();
+
+    // 2. Restore Directory Handle
+    const hasHandle = await FsStorage.restoreHandle();
+    if (hasHandle) {
+        footerStatus.textContent = '디렉토리 설정됨';
+        updateSaveButton();
+    }
+
+    // 3. Check Collecting State
+    chrome.runtime.sendMessage({ type: 'GET_COLLECTING_STATE' }, (response) => {
+        if (chrome.runtime.lastError) return; // Background might be asleep
+        if (response && response.collecting) {
+            setCollectingUI(true);
+            collecting = true;
+        }
+    });
+});
+
+// ------------------------------------------------------------------------
+// UI Updates
+// ------------------------------------------------------------------------
+
+function setCollectingUI(active) {
+    collecting = active;
+    toggleBtn.textContent = active ? 'Stop Collecting' : 'Start Collecting';
+    toggleBtn.classList.toggle('collecting', active);
+    statusDot.classList.toggle('active', active);
+    statusText.textContent = active ? '수집 중...' : '대기 중';
+}
+
+function updateSaveButton() {
+    savBtn.disabled = history.length === 0 || !FsStorage.isReady();
+}
+
+function displayElementInfo(info) {
+    elementCard.style.display = 'block';
+    elTag.textContent = `<${info.tagName}>`;
+    elId.textContent = info.id ? `#${info.id}` : '';
+    elClass.textContent = info.className ? `.${info.className.replace(/\s+/g, '.')}` : '';
+    elUrl.textContent = info.url;
+}
+
+function displaySelectors(selectors, validation) {
+    selectorsGrid.innerHTML = '';
+    
+    // Order of display
+    const order = ['id', 'classes', 'tag'];
+    // Add attributes
+    Object.keys(selectors).forEach(key => {
+        if (key.startsWith('[')) order.push(key);
+    });
+    order.push('nthOfType', 'fullCssPath', 'xpath', 'textXpath');
+
+    let hasContent = false;
+
+    order.forEach(key => {
+        const value = selectors[key];
+        if (!value) return;
+        hasContent = true;
+
+        const isValid = validation[key];
+        const row = document.createElement('div');
+        row.className = 'selector-row';
+
+        // Label
+        const label = document.createElement('span');
+        label.className = 'selector-label';
+        // Pretty print label
+        label.textContent = key === 'nthOfType' ? 'nth-of-type' : 
+                            key === 'fullCssPath' ? 'CSS Path' : 
+                            key === 'textXpath' ? 'Text XPath' : 
+                            key === 'classes' ? 'Class' :
+                            key === 'tag' ? 'Tag' :
+                            key === 'xpath' ? 'XPath' :
+                            key === 'id' ? 'ID' : key;
+        
+        // Value
+        const code = document.createElement('code');
+        code.className = 'selector-value';
+        code.textContent = value;
+        code.title = '클릭하여 복사';
+        code.addEventListener('click', () => copyToClipboard(value, code));
+
+        // Validation Icon
+        const icon = document.createElement('span');
+        icon.className = `validation-icon ${isValid ? 'valid' : 'invalid'}`;
+        icon.textContent = isValid ? '✓' : '✗';
+        icon.title = isValid ? 'Valid (Unique match)' : 'Invalid or not unique';
+
+        // Copy Button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.textContent = 'Copy';
+        copyBtn.dataset.selector = value;
+        
+        row.appendChild(label);
+        row.appendChild(code);
+        row.appendChild(icon);
+        row.appendChild(copyBtn);
+
+        selectorsGrid.appendChild(row);
+    });
+
+    if (!hasContent) {
+        selectorsGrid.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">셀렉터 없음</div>';
+    }
+}
+
+async function copyToClipboard(text, triggerElement) {
+    try {
+        await navigator.clipboard.writeText(text);
+        
+        // Visual feedback
+        if (triggerElement.tagName === 'BUTTON') {
+            triggerElement.textContent = 'Copied!';
+            setTimeout(() => triggerElement.textContent = 'Copy', 1500);
+        } else {
+            // Flash effect for code element
+            const originalBg = triggerElement.style.background;
+            triggerElement.style.background = 'var(--accent)';
+            triggerElement.style.color = '#fff';
+            setTimeout(() => {
+                triggerElement.style.background = originalBg;
+                triggerElement.style.color = '';
+            }, 200);
+        }
+    } catch (err) {
+        console.error('Copy failed', err);
+    }
+}
+
+// ------------------------------------------------------------------------
+// History Management
+// ------------------------------------------------------------------------
+
+function addToHistory(entry) {
+    // Deduplication check
+    if (lastProcessedTimestamp === entry.elementInfo.timestamp) return;
+    lastProcessedTimestamp = entry.elementInfo.timestamp;
+
+    history.unshift(entry);
+    if (history.length > 100) history.pop();
+    
+    updateHistoryUI();
+    saveHistoryToStorage();
+    updateSaveButton();
+}
+
+function updateHistoryUI() {
+    historyCount.textContent = history.length;
+    historyList.innerHTML = '';
+
+    history.forEach((entry, index) => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.addEventListener('click', () => {
+            displayElementInfo(entry.elementInfo);
+            displaySelectors(entry.selectors, entry.validation);
+        });
+
+        const tag = document.createElement('div');
+        tag.className = 'history-item-tag';
+        tag.textContent = `<${entry.elementInfo.tagName}>`;
+
+        const detail = document.createElement('div');
+        detail.className = 'history-item-detail';
+        const idStr = entry.elementInfo.id ? `#${entry.elementInfo.id}` : '';
+        const classStr = entry.elementInfo.className ? `.${entry.elementInfo.className.split(' ')[0]}` : ''; // Show first class only
+        detail.textContent = `${idStr}${classStr} ${entry.elementInfo.textContent}`;
+
+        const time = document.createElement('div');
+        time.className = 'history-time';
+        const date = new Date(entry.elementInfo.timestamp);
+        time.textContent = date.toLocaleTimeString();
+
+        div.appendChild(time); // Float right, so append first or handle with flex
+        div.appendChild(tag);
+        div.appendChild(detail);
+        
+        historyList.appendChild(div);
+    });
+}
+
+function saveHistoryToStorage() {
+    chrome.storage.local.set({ selectorHistory: history });
+}
+
+function loadHistoryFromStorage() {
+    chrome.storage.local.get('selectorHistory', (result) => {
+        if (result.selectorHistory) {
+            history = result.selectorHistory;
+            updateHistoryUI();
+            updateSaveButton();
+        }
+    });
+}
+
+// ------------------------------------------------------------------------
+// Event Listeners
+// ------------------------------------------------------------------------
+
+// Toggle Start/Stop
+toggleBtn.addEventListener('click', async () => {
+    if (collecting) {
+        chrome.runtime.sendMessage({ type: 'STOP_COLLECTING' });
+        setCollectingUI(false);
+    } else {
+        chrome.runtime.sendMessage({ type: 'START_COLLECTING' });
+        setCollectingUI(true);
+    }
+});
+
+// Set Directory
+dirBtn.addEventListener('click', async () => {
+    try {
+        const selected = await FsStorage.selectDirectory();
+        if (selected) {
+            footerStatus.textContent = '디렉토리 설정됨';
+            updateSaveButton();
+        }
+    } catch (err) {
+        footerStatus.textContent = `오류: ${err.message}`;
+    }
+});
+
+// Save JSON
+savBtn.addEventListener('click', async () => {
+    if (history.length === 0) return;
+    
+    const data = {
+        exportedAt: new Date().toISOString(),
+        totalEntries: history.length,
+        entries: history
+    };
+    
+    const filename = `selectors-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
+    
+    try {
+        await FsStorage.saveJson(filename, data);
+        footerStatus.textContent = `저장됨: ${filename}`;
+        setTimeout(() => footerStatus.textContent = '준비됨', 3000);
+    } catch (err) {
+        footerStatus.textContent = `저장 실패: ${err.message}`;
+    }
+});
+
+// Export JSON (Download)
+exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Don't collapse details
+    if (history.length === 0) return;
+
+    const data = {
+        exportedAt: new Date().toISOString(),
+        totalEntries: history.length,
+        entries: history
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `selectors-export-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
+// Clear History
+clearHistoryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (confirm('히스토리를 모두 삭제하시겠습니까?')) {
+        history = [];
+        updateHistoryUI();
+        saveHistoryToStorage();
+        updateSaveButton();
+        selectorsGrid.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">삭제됨</div>';
+        elementCard.style.display = 'none';
+    }
+});
+
+// Copy button delegate
+selectorsGrid.addEventListener('click', async (e) => {
+    const copyBtn = e.target.closest('.copy-btn');
+    if (!copyBtn) return;
+    await copyToClipboard(copyBtn.dataset.selector, copyBtn);
+});
+
+// Message Listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'SELECTORS_COLLECTED') {
+        const { selectors, validation, elementInfo } = message.data;
+        displayElementInfo(elementInfo);
+        displaySelectors(selectors, validation);
+        addToHistory({ selectors, validation, elementInfo });
+    }
+    else if (message.type === 'STOPPED_BY_TAB_CLOSE' || (message.type === 'COLLECTING_STATE_CHANGED' && !message.data.collecting)) {
+        setCollectingUI(false);
+    }
+});
