@@ -154,6 +154,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    else if (message.type === 'HIGHLIGHT_ELEMENT') {
+        (async () => {
+            // 1. collectingTabId 확인
+            let tabId = await getCollectingTabId();
+            // 2. 없으면 현재 활성 탭 사용
+            if (!tabId) {
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                tabId = tab?.id;
+            }
+            if (tabId) {
+                try {
+                    await ensureContentScript(tabId);
+                    const response = await chrome.tabs.sendMessage(tabId, message);
+                    sendResponse(response);
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            } else {
+                sendResponse({ success: false, error: 'No target tab' });
+            }
+        })();
+        return true;
+    }
+
     else if (message.type === 'VALIDATE_SELECTOR') {
         // Sidepanel -> Content Script
         (async () => {

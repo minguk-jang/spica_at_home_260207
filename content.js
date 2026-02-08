@@ -33,6 +33,15 @@
                 outline: 3px solid #58a6ff !important;
                 outline-offset: 2px;
             }
+            .__sc-highlight-pulse {
+                outline: 3px solid #f78166 !important;
+                outline-offset: 2px;
+                animation: sc-pulse 0.5s ease-in-out 3;
+            }
+            @keyframes sc-pulse {
+                0%, 100% { outline-color: #f78166; }
+                50% { outline-color: transparent; }
+            }
         `;
         
         styleElement = document.createElement('style');
@@ -68,6 +77,11 @@
             lastHighlighted.classList.remove('__sc-highlight');
             lastHighlighted = null;
         }
+    }
+
+    function removeHighlightPulse() {
+        const prev = document.querySelector('.__sc-highlight-pulse');
+        if (prev) prev.classList.remove('__sc-highlight-pulse');
     }
 
     // ------------------------------------------------------------------------
@@ -200,6 +214,50 @@
                     }
                 } catch (e) {
                     testClickInProgress = false;
+                    sendResponse({ success: false, error: e.message });
+                }
+                return true;
+            }
+
+            case 'HIGHLIGHT_ELEMENT': {
+                injectStyles();
+                const { selector, isXPath } = message.data;
+                let element = null;
+                try {
+                    if (isXPath) {
+                        const result = document.evaluate(
+                            selector, document, null,
+                            XPathResult.FIRST_ORDERED_NODE_TYPE, null
+                        );
+                        element = result.singleNodeValue;
+                    } else {
+                        element = document.querySelector(selector);
+                    }
+
+                    if (element) {
+                        // 이전 하이라이트 제거
+                        clearHighlight();
+                        removeHighlightPulse();
+
+                        // 스크롤 이동
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                        // 펄스 아웃라인 하이라이트
+                        element.classList.add('__sc-highlight-pulse');
+                        lastHighlighted = element;
+
+                        // 2초 후 자동 제거
+                        setTimeout(() => {
+                            if (element.classList.contains('__sc-highlight-pulse')) {
+                                element.classList.remove('__sc-highlight-pulse');
+                            }
+                        }, 2000);
+
+                        sendResponse({ success: true });
+                    } else {
+                        sendResponse({ success: false, error: 'Element not found' });
+                    }
+                } catch (e) {
                     sendResponse({ success: false, error: e.message });
                 }
                 return true;

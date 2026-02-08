@@ -704,6 +704,17 @@ details[open] .history-summary::before {
     float: right;
 }
 
+.history-not-found {
+    font-size: 10px;
+    color: var(--danger, #f85149);
+    background: var(--danger-bg, rgba(248, 81, 73, 0.1));
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: auto;
+    float: right;
+    margin-right: 5px;
+}
+
 /* ---------------------------------------------------------
    19. Footer
    --------------------------------------------------------- */

@@ -219,6 +219,51 @@ function addToHistory(entry) {
     updateSaveButton();
 }
 
+function pickBestSelector(selectors, validation) {
+    const cssOrder = ['id', 'classes', 'tag'];
+    // 속성 셀렉터 추가
+    Object.keys(selectors).forEach(key => {
+        if (key.startsWith('[')) cssOrder.push(key);
+    });
+    cssOrder.push('nthOfType', 'fullCssPath');
+
+    const xpathOrder = ['xpath', 'textXpath'];
+
+    // CSS 셀렉터 우선 시도
+    for (const key of cssOrder) {
+        if (selectors[key] && validation[key]) {
+            return { selector: selectors[key], isXPath: false };
+        }
+    }
+    // XPath 시도
+    for (const key of xpathOrder) {
+        if (selectors[key] && validation[key]) {
+            return { selector: selectors[key], isXPath: true };
+        }
+    }
+    // validation 무시하고 아무거나 시도
+    for (const key of [...cssOrder, ...xpathOrder]) {
+        if (selectors[key]) {
+            return { selector: selectors[key], isXPath: xpathOrder.includes(key) };
+        }
+    }
+    return null;
+}
+
+function showHistoryItemFeedback(itemDiv, found) {
+    if (!found) {
+        itemDiv.style.opacity = '0.5';
+        const badge = document.createElement('span');
+        badge.className = 'history-not-found';
+        badge.textContent = '요소 없음';
+        itemDiv.appendChild(badge);
+        setTimeout(() => {
+            itemDiv.style.opacity = '';
+            badge.remove();
+        }, 2000);
+    }
+}
+
 function updateHistoryUI() {
     historyCount.textContent = history.length;
     historyList.innerHTML = '';
@@ -226,9 +271,28 @@ function updateHistoryUI() {
     history.forEach((entry, index) => {
         const div = document.createElement('div');
         div.className = 'history-item';
-        div.addEventListener('click', () => {
+        div.addEventListener('click', async () => {
+            // 기존: 사이드패널 UI 업데이트
             displayElementInfo(entry.elementInfo);
             displaySelectors(entry.selectors, entry.validation);
+
+            // 신규: 웹페이지에서 요소 하이라이트
+            const best = pickBestSelector(entry.selectors, entry.validation);
+            if (best) {
+                try {
+                    const response = await chrome.runtime.sendMessage({
+                        type: 'HIGHLIGHT_ELEMENT',
+                        data: best
+                    });
+                    if (!response || !response.success) {
+                        // 시각적 피드백: 히스토리 항목에 "못 찾음" 표시
+                        showHistoryItemFeedback(div, false);
+                    }
+                } catch (err) {
+                    // 메시지 전송 실패 (탭 없음 등)
+                    showHistoryItemFeedback(div, false);
+                }
+            }
         });
 
         const tag = document.createElement('div');
