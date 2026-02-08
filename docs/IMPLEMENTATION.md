@@ -254,6 +254,26 @@
 - `history` - 수집 히스토리 배열
 - `lastProcessedTimestamp` - 마지막 처리 시간 (중복 방지)
 
+#### 테마 관리 ✨ NEW
+
+**`initTheme()`**
+- 용도: 페이지 로드 시 테마 초기화
+- 동작:
+  1. localStorage에서 'sc-theme' 키로 저장된 테마 불러오기
+  2. 값이 없으면 기본값 'dark' 사용
+  3. `data-theme` 속성을 HTML 요소에 설정
+- 실행 시점: DOMContentLoaded 이전
+
+**테마 토글 이벤트 핸들러**
+- 용도: 사용자가 테마 전환 버튼 클릭 시 처리
+- 동작:
+  1. `theme-transitioning` 클래스 추가 (부드러운 전환 애니메이션)
+  2. 현재 테마 확인 (dark ↔ light)
+  3. `data-theme` 속성 변경
+  4. localStorage에 새 테마 저장
+  5. 350ms 후 `theme-transitioning` 클래스 제거
+- CSS 연동: `[data-theme="dark"]`, `[data-theme="light"]` 선택자로 자동 스타일 적용
+
 #### DOM 요소 참조
 
 **제어 요소**
@@ -635,6 +655,18 @@
 
 저장된 JSON 파일을 불러와서 편집, 삭제, 파일 간 이동하는 대시보드 UI를 제공합니다.
 
+#### 테마 관리 ✨ NEW
+
+**`initTheme()`**
+- 용도: 페이지 로드 시 테마 초기화
+- 동작: sidepanel.js와 동일한 로직 (localStorage에서 'sc-theme' 불러오기)
+- 사이드패널과 테마 설정 동기화
+
+**테마 토글 이벤트 핸들러**
+- 용도: 대시보드에서도 테마 전환 가능
+- 동작: sidepanel.js와 동일 (dark ↔ light, localStorage 저장)
+- 사이드패널과 동일한 디자인 시스템 공유
+
 #### 상태 관리
 
 - `currentFile` - 현재 편집 중인 파일명
@@ -899,12 +931,14 @@ await FsStorage.saveJson(currentFile, {
 | selector-core.js | ✅ 완성 | 8+ | - |
 | content.js | ✅ 완성 | 10+ | - |
 | background.js | ✅ 완성 | 6+ | - |
-| sidepanel.js | ✅ 완성 | 14+ | ✨ Modal 기능 추가 (4개 함수) |
-| dashboard.js | ✅ 완성 | 20+ | ✨ Rename + Entry 편집 (5개 함수) |
+| sidepanel.js | ✅ 완성 | 16+ | ✨ Modal + 테마 기능 추가 |
+| sidepanel.css | ✅ 완성 | - | ✨ 다크/라이트 테마 디자인 시스템 |
+| dashboard.js | ✅ 완성 | 22+ | ✨ Rename + Entry 편집 + 테마 |
+| dashboard.css | ✅ 완성 | - | ✨ 다크/라이트 테마 디자인 시스템 |
 | lib/idb-helper.js | ✅ 완성 | 4 | - |
 | lib/fs-storage.js | ✅ 완성 | 10 | ✨ renameFile() 추가 |
 
-**총 함수/기능: 60+ 개 구현 완료**
+**총 함수/기능: 65+ 개 구현 완료**
 
 ### 최근 추가된 기능 (2026-02-08)
 
@@ -923,4 +957,33 @@ await FsStorage.saveJson(currentFile, {
 
 #### 파일 시스템 (fs-storage.js)
 - ✅ renameFile() 함수 (읽기→저장→삭제 방식)
+
+#### 프로덕션 레벨 테마 시스템 ✨ NEW (2026-02-08)
+
+**디자인 시스템**
+- ✅ **다크 테마 (Void)**: 전문적인 어두운 색상 팔레트
+  - 배경: #09090b, #111116, #19191f
+  - 액센트: #2dd4bf (청록색)
+  - 텍스트: #ececf0, #8585a0, #525268
+- ✅ **라이트 테마 (Stone)**: 부드러운 밝은 색상 팔레트
+  - 배경: #f5f3ee, #eae7e0, #ffffff
+  - 액센트: #0d9488 (청록색 - 다크)
+  - 텍스트: #1c1a16, #6b665e, #a09a91
+- ✅ **Typography**: Outfit (UI) + JetBrains Mono (코드)
+- ✅ **Signature Accent Bar**: 상단 2px 그래디언트 바
+- ✅ **Custom Scrollbar**: 테마별 스크롤바 스타일
+- ✅ **Smooth Transitions**: 0.3초 ease 전환 애니메이션
+
+**구현 범위**
+- ✅ sidepanel.html/css/js - 완전한 테마 시스템
+- ✅ dashboard.html/css/js - 완전한 테마 시스템
+- ✅ localStorage 동기화 (`sc-theme` 키)
+- ✅ 테마 토글 버튼 (태양/달 아이콘)
+- ✅ 모든 UI 컴포넌트 테마 대응
+
+**사용자 경험**
+- ✅ 원클릭 테마 전환
+- ✅ 설정 영구 저장
+- ✅ 사이드패널 ↔ 대시보드 간 테마 동기화
+- ✅ 부드러운 색상 전환 애니메이션
 

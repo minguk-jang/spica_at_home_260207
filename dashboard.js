@@ -1,4 +1,26 @@
+// Theme Initialization
+function initTheme() {
+    const stored = localStorage.getItem('sc-theme');
+    const theme = stored || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+}
+initTheme();
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Theme Toggle
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const html = document.documentElement;
+            html.classList.add('theme-transitioning');
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('sc-theme', next);
+            setTimeout(() => html.classList.remove('theme-transitioning'), 350);
+        });
+    }
+
     // UI Elements
     const refreshBtn = document.getElementById('refresh-btn');
     const moveModeBtn = document.getElementById('move-mode-btn');

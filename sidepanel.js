@@ -12,6 +12,27 @@ const savBtn = document.getElementById('savBtn');
 const dirBtn = document.getElementById('dirBtn');
 const footerStatus = document.getElementById('footerStatus');
 
+// Theme Toggle
+const themeToggle = document.getElementById('themeToggle');
+function initTheme() {
+    const stored = localStorage.getItem('sc-theme');
+    const theme = stored || 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+}
+initTheme();
+
+if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+        const html = document.documentElement;
+        html.classList.add('theme-transitioning');
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('sc-theme', next);
+        setTimeout(() => html.classList.remove('theme-transitioning'), 350);
+    });
+}
+
 const elementCard = document.getElementById('elementCard');
 const elTag = document.getElementById('elTag');
 const elId = document.getElementById('elId');
@@ -147,7 +168,7 @@ function displaySelectors(selectors, validation) {
     });
 
     if (!hasContent) {
-        selectorsGrid.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">셀렉터 없음</div>';
+        selectorsGrid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&mdash;</div><div class="empty-state-text">셀렉터 없음</div></div>';
     }
 }
 
@@ -412,7 +433,7 @@ clearHistoryBtn.addEventListener('click', (e) => {
         updateHistoryUI();
         saveHistoryToStorage();
         updateSaveButton();
-        selectorsGrid.innerHTML = '<div style="text-align: center; color: var(--text-secondary);">삭제됨</div>';
+        selectorsGrid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&lt;/&gt;</div><div class="empty-state-text">삭제됨</div></div>';
         elementCard.style.display = 'none';
     }
 });
