@@ -147,11 +147,17 @@ function displaySelectors(selectors, validation) {
         code.title = '클릭하여 복사';
         code.addEventListener('click', () => copyToClipboard(value, code));
 
-        // Validation Icon
+        // Validation Icon (clickable toggle)
         const icon = document.createElement('span');
         icon.className = `validation-icon ${isValid ? 'valid' : 'invalid'}`;
         icon.textContent = isValid ? '✓' : '✗';
-        icon.title = isValid ? 'Valid (Unique match)' : 'Invalid or not unique';
+        icon.title = '클릭하여 전환';
+        icon.addEventListener('click', () => {
+            const wasValid = icon.classList.contains('valid');
+            icon.classList.toggle('valid', !wasValid);
+            icon.classList.toggle('invalid', wasValid);
+            icon.textContent = wasValid ? '✗' : '✓';
+        });
 
         // Test Button
         const testBtn = document.createElement('button');
