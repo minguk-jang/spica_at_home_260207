@@ -1,4 +1,6 @@
-# Test 버튼 구현 계획
+# Test 버튼 및 유효성 토글 구현 로그
+
+> **상태**: ✅ **완성** (2026-02-08)
 
 ## 배경
 
@@ -231,3 +233,70 @@ selectorsGrid.addEventListener('click', async (e) => {
 ## 예상 복잡도: LOW
 
 4개 파일에 소규모 변경. 기존 `VALIDATE_SELECTOR` 패턴을 거의 그대로 재사용하므로 구현이 간단하다.
+
+---
+
+## 🎉 구현 완료 요약
+
+### 실제 구현된 내용
+
+#### 1. Test 버튼 기능 (2026-02-08)
+- ✅ Copy 버튼 → Test 버튼으로 교체
+- ✅ 셀렉터로 요소를 찾아 실제 `.click()` 실행
+- ✅ 오렌지색 아웃라인 시각 피드백 (500ms)
+- ✅ 로딩(…) → 성공(OK!) / 실패(Fail) / 오류(Err) 상태 표시
+- ✅ 색상 피드백: 성공 (녹색), 실패/오류 (빨간색)
+- ✅ 1.5초 후 자동 리셋
+
+#### 2. 수집 중지 후 Test 가능 기능
+- ✅ `lastTabId` 저장 및 조회
+- ✅ `collectingTabId` 없을 때 `lastTabId` fallback
+- ✅ 탭 종료 시 `lastTabId` 정리
+
+#### 3. Programmatic Click 간섭 방지
+- ✅ `testClickInProgress` 플래그 추가
+- ✅ `handleClick`에서 플래그 확인하여 무시
+- ✅ `try/finally + setTimeout` 패턴으로 안전한 플래그 관리
+
+#### 4. Chrome Extension 메시지 프로토콜 수정
+- ✅ `content.js` 메시지 리스너에 `return true` 추가
+- ✅ PING, VALIDATE_SELECTOR, TEST_CLICK_SELECTOR 모두 응답 채널 유지
+- ✅ 메시지 응답이 undefined가 되지 않도록 수정 (BUG FIX)
+
+#### 5. 유효성 아이콘 토글 기능 (2026-02-08)
+- ✅ ✓/✗ 아이콘 클릭으로 검증 상태 수동 변경
+- ✅ 클래스 토글 (`valid` ↔ `invalid`)
+- ✅ 텍스트 변경 ("✓" ↔ "✗")
+- ✅ hover 시 scale 1.25 애니메이션
+- ✅ 커서 pointer로 변경
+
+### 수정 파일 및 커밋
+
+| 파일 | 변경 | 커밋 |
+|------|------|------|
+| `content.js` | `TEST_CLICK_SELECTOR` 핸들러, `testClickInProgress` 플래그, `return true` 추가 | 075a990 |
+| `background.js` | `TEST_CLICK_SELECTOR` 라우팅, `getLastTabId/setLastTabId` 함수 | 075a990 |
+| `sidepanel.js` | Test 버튼 UI, 이벤트 핸들러, 유효성 아이콘 토글 | 075a990 + 39eaace |
+| `sidepanel.css` | `.test-btn` 스타일, `.test-success/.test-fail`, `.validation-icon:hover` | 075a990 + 39eaace |
+
+### 총 2개 커밋
+1. **075a990**: Copy 버튼을 Test 버튼으로 교체 + 수집 중지 후 테스트 가능 + 메시지 응답 채널 수정
+2. **39eaace**: 유효성 아이콘 토글 기능 추가
+
+### 발견된 버그 및 수정
+
+| 버그 | 원인 | 수정 |
+|------|------|------|
+| Test 항상 Fail | `content.js` 메시지 리스너가 `return true`를 하지 않아 응답 채널 미유지 | `sendResponse` 후 `return true` 추가 |
+| 수집 중지 후 Test 실패 | `getCollectingTabId()`만 사용하여 수집 중지 시 tabId가 null | `getLastTabId()` 추가 및 fallback 로직 |
+| Test 중 `handleClick` 간섭 | `element.click()` 이벤트가 `handleClick`에 의해 감지/재수집됨 | `testClickInProgress` 플래그로 방지 |
+
+### 테스트 결과
+✅ Test 버튼: 수집 중/중지 후 모두 정상 동작
+✅ 유효성 토글: ✓/✗ 클릭으로 즉시 변경
+✅ 시각 피드백: 성공/실패 색상 올바르게 표시
+✅ 복사 기능: 텍스트 박스 클릭으로 복사 유지
+
+---
+
+**마지막 업데이트**: 2026-02-08

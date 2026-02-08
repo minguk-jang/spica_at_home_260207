@@ -98,6 +98,7 @@
 #### 상태 관리
 
 - `collecting` - 수집 활성 여부
+- `testClickInProgress` - Test 버튼의 programmatic click 진행 중 여부 ✨ NEW
 - `lastHighlighted` - 마지막으로 하이라이트된 요소
 - `statusBar` - 상태 표시 바
 - `styleElement` - 주입된 스타일 요소
@@ -129,10 +130,11 @@
 - 용도: 웹페이지 클릭 이벤트 처리
 - 동작:
   1. 수집 모드 확인
-  2. 자신의 UI 클릭 무시
-  3. 클릭된 요소에 하이라이트 적용
-  4. `selector-core.js`를 사용해 모든 셀렉터 생성
-  5. 결과를 Background로 전송
+  2. Test 버튼의 programmatic click 감지 시 무시 ✨ NEW
+  3. 자신의 UI 클릭 무시
+  4. 클릭된 요소에 하이라이트 적용
+  5. `selector-core.js`를 사용해 모든 셀렉터 생성
+  6. 결과를 Background로 전송
 
 **`handleMessage(message, sender, sendResponse)`**
 - 용도: Background와의 메시지 처리
@@ -141,6 +143,7 @@
   - `STOP_COLLECTING` - 수집 중지
   - `PING` - 스크립트 존재 확인
   - `VALIDATE_SELECTOR` - 선택자 검증
+  - `TEST_CLICK_SELECTOR` - 선택자로 요소를 찾아 실제 클릭 실행 ✨ NEW
 
 #### 수집 제어
 
@@ -182,6 +185,16 @@
 - 용도: 수집 중인 탭 ID 설정
 - 입력: `tabId` 또는 `null` (초기화)
 
+**`getLastTabId()`** ✨ NEW
+- 용도: 마지막으로 수집했던 탭 ID 조회
+- 출력: `tabId` 또는 `null`
+- 저장 위치: `chrome.storage.local`
+- 용도: Test 버튼이 수집 중지 후에도 마지막 탭에서 테스트 가능하도록 함
+
+**`setLastTabId(tabId)`** ✨ NEW
+- 용도: 마지막 수집 탭 ID 설정
+- 입력: `tabId` 또는 `null` (초기화)
+
 #### 콘텐츠 스크립트 관리
 
 **`ensureContentScript(tabId)`**
@@ -216,7 +229,13 @@
    - 메시지를 수집 중인 탭으로 포워딩
    - 선택자 검증 결과 반환
 
-5. **`SELECTORS_COLLECTED`** (콘텐츠 스크립트에서)
+5. **`TEST_CLICK_SELECTOR`** (사이드패널에서) ✨ NEW
+   - 현재 수집 중인 탭 또는 마지막 수집 탭에서 선택자로 요소를 찾아 `.click()` 실행
+   - 수집 중지 후에도 마지막 탭 ID로 테스트 가능
+   - 응답: `{success: true}` 또는 `{success: false, error: string}`
+   - 오렌지 아웃라인 시각 피드백 제공
+
+6. **`SELECTORS_COLLECTED`** (콘텐츠 스크립트에서)
    - 사이드패널로 포워딩
    - 히스토리 업데이트용
 
@@ -226,6 +245,7 @@
 - 용도: 탭 종료 감지
 - 동작:
   - 수집 중인 탭이 종료되면 상태 초기화
+  - 마지막 수집 탭이 종료되면 `lastTabId` 정리 ✨ NEW
   - 사이드패널에 상태 변화 알림
 
 **`chrome.tabs.onActivated.addListener()`**
@@ -321,9 +341,9 @@
 - 용도: 생성된 셀렉터들을 그리드에 표시
 - 각 셀렉터마다:
   - 타입 뱃지
-  - 셀렉터 문자열
-  - 유효성 표시
-  - 복사 버튼
+  - 셀렉터 문자열 (클릭하여 복사)
+  - 유효성 표시 (✓/✗ 아이콘, 클릭하여 토글) ✨ NEW
+  - Test 버튼 (셀렉터로 요소를 찾아 클릭) ✨ NEW
 
 **`displayHistory()`**
 - 용도: 히스토리 목록 업데이트
@@ -380,6 +400,35 @@
 
 **`clearHistoryBtn` 클릭**
 - `clearHistory()` 실행
+
+#### 유효성 아이콘 토글 ✨ NEW
+
+**아이콘 클릭 동작**
+- 용도: 사용자가 Test 결과를 바탕으로 수동으로 검증 상태 변경
+- 동작:
+  1. ✓ 클릭 → ✗로 토글
+  2. ✗ 클릭 → ✓로 토글
+  3. 클래스 변경 (`valid` ↔ `invalid`)
+- 스타일: hover 시 아이콘 확대 (scale 1.25)
+- 커서: pointer로 변경하여 클릭 가능 표시
+
+#### Test 버튼 이벤트 핸들러 ✨ NEW
+
+**`selectorsGrid` 클릭 이벤트**
+- 용도: Test 버튼 클릭 처리
+- 동작:
+  1. 버튼 텍스트 변경: "Test" → "..." (로딩)
+  2. 버튼 비활성화
+  3. `chrome.runtime.sendMessage()` → Background → Content Script
+  4. 요소 찾기 및 `.click()` 실행
+  5. 응답에 따라 상태 표시:
+     - 성공: "OK!" + 녹색 배경 (test-success 클래스)
+     - 실패: "Fail" + 빨간색 배경 (test-fail 클래스)
+     - 오류: "Err" + 빨간색 배경
+  6. 1.5초 후 "Test"로 복원
+- 안전성:
+  - `testBtn.isConnected` 확인 (DOM에서 제거된 경우 처리)
+  - `try-catch`로 예외 처리
 
 #### 메시지 처리
 
@@ -929,18 +978,29 @@ await FsStorage.saveJson(currentFile, {
 | 모듈 | 상태 | 구현 함수 개수 | 최근 업데이트 |
 |------|------|---|---|
 | selector-core.js | ✅ 완성 | 8+ | - |
-| content.js | ✅ 완성 | 10+ | - |
-| background.js | ✅ 완성 | 6+ | - |
-| sidepanel.js | ✅ 완성 | 16+ | ✨ Modal + 테마 기능 추가 |
-| sidepanel.css | ✅ 완성 | - | ✨ 다크/라이트 테마 디자인 시스템 |
+| content.js | ✅ 완성 | 11+ | ✨ TEST_CLICK_SELECTOR + testClickInProgress 플래그 |
+| background.js | ✅ 완성 | 8+ | ✨ getLastTabId/setLastTabId + TEST_CLICK_SELECTOR 라우팅 |
+| sidepanel.js | ✅ 완성 | 19+ | ✨ Test 버튼 + 유효성 아이콘 토글 + Modal + 테마 |
+| sidepanel.css | ✅ 완성 | - | ✨ .test-btn + .validation-icon:hover + 테마 |
 | dashboard.js | ✅ 완성 | 22+ | ✨ Rename + Entry 편집 + 테마 |
-| dashboard.css | ✅ 완성 | - | ✨ 다크/라이트 테마 디자인 시스템 |
+| dashboard.css | ✅ 완성 | - | ✨ 테마 |
 | lib/idb-helper.js | ✅ 완성 | 4 | - |
-| lib/fs-storage.js | ✅ 완성 | 10 | ✨ renameFile() 추가 |
+| lib/fs-storage.js | ✅ 완성 | 10 | ✨ renameFile() |
 
-**총 함수/기능: 65+ 개 구현 완료**
+**총 함수/기능: 75+ 개 구현 완료**
 
 ### 최근 추가된 기능 (2026-02-08)
+
+#### Test 버튼 및 유효성 토글 (sidepanel.js & content.js) ✨ LATEST
+- ✅ Copy 버튼 → Test 버튼으로 교체
+- ✅ Test 버튼: 셀렉터로 요소를 찾아 실제 `.click()` 실행
+- ✅ 수집 중지 후에도 `lastTabId`로 테스트 가능
+- ✅ 오렌지 아웃라인 시각 피드백
+- ✅ 로딩/성공/실패 상태 표시 (색상 피드백)
+- ✅ 유효성 아이콘(✓/✗) 클릭 토글
+- ✅ icon hover 시 scale 애니메이션
+- ✅ `testClickInProgress` 플래그로 `handleClick` 간섭 방지
+- ✅ `return true` 추가하여 메시지 응답 채널 유지 ✨ BUG FIX
 
 #### 저장 Modal (sidepanel.js)
 - ✅ 이름 입력 및 실시간 검증 (영문/숫자/하이픈만)
@@ -957,6 +1017,49 @@ await FsStorage.saveJson(currentFile, {
 
 #### 파일 시스템 (fs-storage.js)
 - ✅ renameFile() 함수 (읽기→저장→삭제 방식)
+
+#### Test 버튼 기능 ✨ NEW (2026-02-08)
+
+**기능**
+- ✅ 각 셀렉터 옆의 Test 버튼으로 실제 요소 클릭 테스트
+- ✅ Copy 버튼 → Test 버튼으로 교체 (이미 텍스트 박스 클릭으로 복사 가능)
+- ✅ 수집 중지 후에도 마지막 탭에서 테스트 가능
+- ✅ 오렌지색 아웃라인 시각 피드백
+- ✅ 로딩(…) → 성공(OK!) / 실패(Fail) / 오류(Err) 상태 표시
+- ✅ 색상 피드백: 성공 (녹색), 실패/오류 (빨간색)
+
+**흐름**
+1. 사이드패널 Test 클릭
+2. `chrome.runtime.sendMessage()` (sidepanel → background)
+3. `background.js` 메시지 라우팅 (collectingTabId 또는 lastTabId)
+4. `content.js`에서 요소 찾기 (`document.querySelector` 또는 `document.evaluate`)
+5. 요소 클릭 실행 (testClickInProgress 플래그로 `handleClick` 간섭 방지)
+6. 시각 피드백 (오렌지 아웃라인 500ms)
+7. 응답 반환 (sidepanel에서 UI 업데이트)
+
+**구현 세부사항**
+- content.js: `testClickInProgress` 플래그로 programmatic click 감지
+- background.js: fallback logic (`collectingTabId || lastTabId`)
+- sidepanel.js: 클릭 이벤트 위임, 상태별 UI 피드백
+- sidepanel.css: `.test-btn`, `.test-success`, `.test-fail` 스타일
+
+---
+
+#### 유효성 아이콘 토글 기능 ✨ NEW (2026-02-08)
+
+**기능**
+- ✅ ✓/✗ 아이콘 클릭으로 검증 상태 수동 변경
+- ✅ hover 시 아이콘 확대 (scale 1.25) 애니메이션
+- ✅ 커서 변경 (pointer) - 클릭 가능 표시
+- ✅ 즉시 UI 업데이트 (클래스 토글)
+
+**동작**
+- `validation-icon` 요소에 `click` 이벤트 리스너
+- `valid` / `invalid` 클래스 토글
+- 텍스트 변경: "✓" ↔ "✗"
+- 아이콘 색상 자동 변경 (CSS)
+
+---
 
 #### 프로덕션 레벨 테마 시스템 ✨ NEW (2026-02-08)
 
