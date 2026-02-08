@@ -1,5 +1,6 @@
 (() => {
     let collecting = false;
+    let testClickInProgress = false;
     let lastHighlighted = null;
     let statusBar = null;
     let styleElement = null;
@@ -75,6 +76,8 @@
 
     function handleClick(e) {
         if (!collecting) return;
+        // Ignore programmatic clicks from Test button
+        if (testClickInProgress) return;
         // Ignore clicks on our own UI
         if (e.target.closest('.__sc-status-bar')) return;
 
@@ -120,7 +123,7 @@
         switch (message.type) {
             case 'PING':
                 sendResponse({ alive: true });
-                break;
+                return true;
 
             case 'START_COLLECTING':
                 collecting = true;
@@ -134,32 +137,18 @@
                 document.removeEventListener('click', handleClick, true);
                 clearHighlight();
                 removeStatusBar();
-                // We keep styles injected to avoid FOUC if re-enabled quickly, 
-                // or we can remove them. The plan implies cleaning up fully.
-                // "표시 바 제거, 클릭 리스너 해제, 하이라이트 제거"
-                // It doesn't explicitly say remove style tag, but it's cleaner to leave it or remove it.
-                // Since __sc-highlight is removed, the style tag is harmless. 
-                // But let's follow the "clean" approach if we want to be thorough.
-                // However, removing style tag might cause layout shift if we had other styles there? 
-                // No, it's just our custom styles.
                 break;
 
-            case 'VALIDATE_SELECTOR':
-                if (!collecting) {
-                    // Even if not collecting, we might want to validate? 
-                    // The plan says "VALIDATE_SELECTOR -> 해당 셀렉터로 요소 검색 -> { valid: true/false } 응답"
-                    // It doesn't strictly require collecting mode.
-                }
-                
+            case 'VALIDATE_SELECTOR': {
                 const { selector, isXPath } = message.data;
                 let valid = false;
                 try {
                     if (isXPath) {
                         const result = document.evaluate(
-                            selector, 
-                            document, 
-                            null, 
-                            XPathResult.FIRST_ORDERED_NODE_TYPE, 
+                            selector,
+                            document,
+                            null,
+                            XPathResult.FIRST_ORDERED_NODE_TYPE,
                             null
                         );
                         valid = !!result.singleNodeValue;
@@ -170,11 +159,52 @@
                     valid = false;
                 }
                 sendResponse({ valid });
-                break;
+                return true;
+            }
+
+            case 'TEST_CLICK_SELECTOR': {
+                const { selector, isXPath } = message.data;
+                let element = null;
+                try {
+                    if (isXPath) {
+                        const result = document.evaluate(
+                            selector, document, null,
+                            XPathResult.FIRST_ORDERED_NODE_TYPE, null
+                        );
+                        element = result.singleNodeValue;
+                    } else {
+                        element = document.querySelector(selector);
+                    }
+
+                    if (element) {
+                        const originalOutline = element.style.outline;
+                        const originalTransition = element.style.transition;
+
+                        element.style.transition = 'outline 0.2s';
+                        element.style.outline = '3px solid #f0883e';
+
+                        setTimeout(() => {
+                            element.style.outline = originalOutline;
+                            element.style.transition = originalTransition;
+                        }, 500);
+
+                        testClickInProgress = true;
+                        try {
+                            element.click();
+                        } finally {
+                            setTimeout(() => { testClickInProgress = false; }, 0);
+                        }
+                        sendResponse({ success: true });
+                    } else {
+                        sendResponse({ success: false, error: 'Element not found' });
+                    }
+                } catch (e) {
+                    testClickInProgress = false;
+                    sendResponse({ success: false, error: e.message });
+                }
+                return true;
+            }
         }
-        
-        // Return true if we use sendResponse asynchronously (not strictly needed here but good practice if logic changes)
-        // ensureContentScript uses PING which needs response.
     });
 
 })();

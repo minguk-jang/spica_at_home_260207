@@ -5,6 +5,7 @@
 // ------------------------------------------------------------------------
 
 const STORAGE_KEY_COLLECTING_TAB = 'collectingTabId';
+const STORAGE_KEY_LAST_TAB = 'lastCollectedTabId';
 
 // Enable side panel to open on action click
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -23,6 +24,19 @@ async function setCollectingTabId(tabId) {
         await chrome.storage.local.remove(STORAGE_KEY_COLLECTING_TAB);
     } else {
         await chrome.storage.local.set({ [STORAGE_KEY_COLLECTING_TAB]: tabId });
+    }
+}
+
+async function getLastTabId() {
+    const result = await chrome.storage.local.get(STORAGE_KEY_LAST_TAB);
+    return result[STORAGE_KEY_LAST_TAB] || null;
+}
+
+async function setLastTabId(tabId) {
+    if (tabId === null) {
+        await chrome.storage.local.remove(STORAGE_KEY_LAST_TAB);
+    } else {
+        await chrome.storage.local.set({ [STORAGE_KEY_LAST_TAB]: tabId });
     }
 }
 
@@ -86,6 +100,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             await ensureContentScript(tab.id);
             await chrome.tabs.sendMessage(tab.id, { type: 'START_COLLECTING' });
             await setCollectingTabId(tab.id);
+            await setLastTabId(tab.id);
         })();
     }
 
@@ -120,6 +135,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // Keep channel open for async response
     }
 
+    else if (message.type === 'TEST_CLICK_SELECTOR') {
+        (async () => {
+            let tabId = await getCollectingTabId();
+            if (!tabId) tabId = await getLastTabId();
+            if (tabId) {
+                try {
+                    await ensureContentScript(tabId);
+                    const response = await chrome.tabs.sendMessage(tabId, message);
+                    sendResponse(response);
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            } else {
+                sendResponse({ success: false, error: 'No target tab' });
+            }
+        })();
+        return true;
+    }
+
     else if (message.type === 'VALIDATE_SELECTOR') {
         // Sidepanel -> Content Script
         (async () => {
@@ -145,14 +179,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
     const collectingTabId = await getCollectingTabId();
+    const lastTabId = await getLastTabId();
+
     if (collectingTabId === tabId) {
         await setCollectingTabId(null);
-        // Notify sidepanel that collecting stopped
-        notifySidePanel('STOPPED_BY_TAB_CLOSE'); // Custom event or just reuse STOP_COLLECTING?
-        // Plan doesn't specify an event for this, but sidepanel might need to update UI.
-        // Sidepanel checks state on init. 
-        // We should probably broadcast STOP_COLLECTING state.
+        notifySidePanel('STOPPED_BY_TAB_CLOSE');
         notifySidePanel('COLLECTING_STATE_CHANGED', { collecting: false });
+    }
+
+    if (lastTabId === tabId) {
+        await setLastTabId(null);
     }
 });
 

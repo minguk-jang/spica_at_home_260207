@@ -153,16 +153,17 @@ function displaySelectors(selectors, validation) {
         icon.textContent = isValid ? '✓' : '✗';
         icon.title = isValid ? 'Valid (Unique match)' : 'Invalid or not unique';
 
-        // Copy Button
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.dataset.selector = value;
+        // Test Button
+        const testBtn = document.createElement('button');
+        testBtn.className = 'test-btn';
+        testBtn.textContent = 'Test';
+        testBtn.dataset.selector = value;
+        testBtn.dataset.isXpath = (key === 'xpath' || key === 'textXpath') ? 'true' : 'false';
         
         row.appendChild(label);
         row.appendChild(code);
         row.appendChild(icon);
-        row.appendChild(copyBtn);
+        row.appendChild(testBtn);
 
         selectorsGrid.appendChild(row);
     });
@@ -438,11 +439,47 @@ clearHistoryBtn.addEventListener('click', (e) => {
     }
 });
 
-// Copy button delegate
+// Test Button Delegate
 selectorsGrid.addEventListener('click', async (e) => {
-    const copyBtn = e.target.closest('.copy-btn');
-    if (!copyBtn) return;
-    await copyToClipboard(copyBtn.dataset.selector, copyBtn);
+    const testBtn = e.target.closest('.test-btn');
+    if (!testBtn || testBtn.disabled) return;
+
+    const selector = testBtn.dataset.selector;
+    const isXPath = testBtn.dataset.isXpath === 'true';
+
+    // UI Feedback: Loading
+    testBtn.textContent = '...';
+    testBtn.disabled = true;
+    testBtn.classList.remove('test-success', 'test-fail');
+
+    try {
+        const response = await chrome.runtime.sendMessage({
+            type: 'TEST_CLICK_SELECTOR',
+            data: { selector, isXPath }
+        });
+
+        if (response && response.success) {
+            testBtn.textContent = 'OK!';
+            testBtn.classList.add('test-success');
+        } else {
+            testBtn.textContent = 'Fail';
+            testBtn.classList.add('test-fail');
+            console.warn('Test click failed:', response ? response.error : 'Unknown error');
+        }
+    } catch (err) {
+        testBtn.textContent = 'Err';
+        testBtn.classList.add('test-fail');
+        console.error('Test click error:', err);
+    }
+
+    // Reset after delay
+    setTimeout(() => {
+        if (testBtn.isConnected) {
+            testBtn.textContent = 'Test';
+            testBtn.disabled = false;
+            testBtn.classList.remove('test-success', 'test-fail');
+        }
+    }, 1500);
 });
 
 // Dashboard Button
