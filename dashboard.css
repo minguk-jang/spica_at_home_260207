@@ -59,6 +59,14 @@ h1 {
   color: var(--text-primary);
 }
 
+.icon-btn.success {
+  color: var(--success-color);
+}
+
+.icon-btn.danger {
+  color: var(--danger-color);
+}
+
 .primary-btn {
   background-color: var(--success-color);
   color: #ffffff;
@@ -159,17 +167,29 @@ h1 {
 .detail-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
   margin-bottom: 24px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 16px;
 }
 
 #current-filename {
-  flex: 1;
   font-size: 18px;
-  margin: 0;
   color: var(--text-primary);
+  margin-right: 8px;
+}
+
+.rename-input {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+}
+.rename-input:focus {
+    border-color: var(--accent-color);
 }
 
 .entry-list {
@@ -216,6 +236,7 @@ h1 {
 
 .info-row {
   display: flex;
+  align-items: center;
   margin-bottom: 8px;
   font-size: 13px;
 }
@@ -229,6 +250,21 @@ h1 {
 .info-value {
   color: var(--text-primary);
   word-break: break-all;
+}
+
+.info-input {
+    flex: 1;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+}
+.info-input:focus {
+    border-color: var(--accent-color);
 }
 
 .selector-row {

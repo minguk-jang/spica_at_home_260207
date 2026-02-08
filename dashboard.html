@@ -30,7 +30,15 @@
         <section id="detail-view" class="view-section hidden">
             <header class="detail-header">
                 <button id="back-btn" class="icon-btn">← Back</button>
-                <h2 id="current-filename">filename.json</h2>
+                <div class="filename-wrapper" style="flex:1; display:flex; align-items:center; gap:8px; margin-left: 16px;">
+                    <h2 id="current-filename" style="margin:0;">filename.json</h2>
+                    <button id="rename-file-btn" class="icon-btn" title="Rename">✏️</button>
+                    <div id="rename-container" class="hidden" style="display:flex; align-items:center; gap:4px;">
+                        <input type="text" id="rename-input" class="rename-input" placeholder="New name">
+                        <button id="confirm-rename-btn" class="icon-btn success" title="Save">✅</button>
+                        <button id="cancel-rename-btn" class="icon-btn danger" title="Cancel">❌</button>
+                    </div>
+                </div>
                 <div class="detail-actions">
                     <button id="save-btn" class="primary-btn">Save</button>
                 </div>

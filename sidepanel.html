@@ -61,5 +61,42 @@
     <script src="lib/idb-helper.js"></script>
     <script src="lib/fs-storage.js"></script>
     <script src="sidepanel.js"></script>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="saveModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>셀렉터 저장</h3>
+                <button class="close-modal-btn" id="closeModalBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="saveNameInput">이름 (Optional)</label>
+                    <input type="text" id="saveNameInput" class="modal-input" placeholder="ex: login-page" autocomplete="off">
+                    <span class="input-hint">영문, 숫자, 하이픈(-)만 허용됩니다.</span>
+                </div>
+                
+                <div class="summary-section">
+                    <div class="summary-title">저장 요약 정보</div>
+                    <div class="summary-item">
+                        <span class="summary-label">총 Entry 수:</span>
+                        <span class="summary-value" id="summaryTotal">0개</span>
+                    </div>
+                    <div class="summary-item" style="align-items: flex-start;">
+                        <span class="summary-label">수집 URL:</span>
+                        <div class="summary-list" id="summaryUrls"></div>
+                    </div>
+                    <div class="summary-item" style="align-items: flex-start;">
+                        <span class="summary-label">태그 분포:</span>
+                        <div class="summary-text" id="summaryTags"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSaveBtn">취소</button>
+                <button class="btn btn-primary" id="confirmSaveBtn">저장</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -13,6 +13,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentFilenameEl = document.getElementById('current-filename');
     const entryList = document.getElementById('entry-list');
     
+    // Rename Elements
+    const renameFileBtn = document.getElementById('rename-file-btn');
+    const renameContainer = document.getElementById('rename-container');
+    const renameInput = document.getElementById('rename-input');
+    const confirmRenameBtn = document.getElementById('confirm-rename-btn');
+    const cancelRenameBtn = document.getElementById('cancel-rename-btn');
+    
     // Move Mode Elements
     const leftFileSelect = document.getElementById('left-file-select');
     const rightFileSelect = document.getElementById('right-file-select');
@@ -71,6 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 // Update metadata before saving
                 const exportData = {
+                    name: currentData.name || null, // Preserve or set name
                     exportedAt: new Date().toISOString(),
                     totalEntries: currentData.length,
                     entries: currentData
@@ -84,6 +92,84 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
+    
+    // Rename Logic
+    renameFileBtn.addEventListener('click', () => {
+        renameFileBtn.classList.add('hidden');
+        currentFilenameEl.classList.add('hidden');
+        renameContainer.classList.remove('hidden');
+        
+        // Extract name part if possible
+        const match = currentFile.match(/^selectors-(.*)-(\d{4}-\d{2}-\d{2}T.*)\.json$/);
+        let currentName = '';
+        if (match) {
+            currentName = match[1];
+        } else {
+             // Fallback: try to guess or just empty
+             // If legacy format: selectors-{timestamp}.json, match[1] would be empty or part of timestamp?
+             // Legacy: selectors-2024-02-08T...json
+             // My regex expects explicit name.
+             // If legacy, maybe no name.
+             const legacyMatch = currentFile.match(/^selectors-(\d{4}-\d{2}-\d{2}T.*)\.json$/);
+             if (!legacyMatch) {
+                 // Maybe it has name but I missed it.
+             }
+        }
+        
+        // Actually, let's look at `currentData.name` first if available (loaded in loadFileDetail)
+        // Wait, `currentData` currently stores entries array. I need to store the full object or at least the name.
+        // Let's modify `loadFileDetail` to store `fileMetadata`.
+        
+        renameInput.value = currentName;
+        renameInput.focus();
+    });
+
+    cancelRenameBtn.addEventListener('click', () => {
+        resetRenameUI();
+    });
+
+    confirmRenameBtn.addEventListener('click', async () => {
+        const newName = renameInput.value.trim();
+        if (!newName) {
+            alert('Please enter a name.');
+            return;
+        }
+        
+        if (!/^[a-zA-Z0-9-]+$/.test(newName)) {
+            alert('Name can only contain letters, numbers, and hyphens.');
+            return;
+        }
+        
+        // Construct new filename
+        // Try to preserve timestamp from original filename
+        let timestampPart;
+        const match = currentFile.match(/(\d{4}-\d{2}-\d{2}T[\d-]+)\.json$/);
+        if (match) {
+            timestampPart = match[1];
+        } else {
+            // New timestamp if not found
+            timestampPart = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        }
+        
+        const newFilename = `selectors-${newName}-${timestampPart}.json`;
+        
+        try {
+            await FsStorage.renameFile(currentFile, newFilename, newName);
+            alert(`Renamed to ${newFilename}`);
+            currentFile = newFilename;
+            currentFilenameEl.textContent = newFilename;
+            resetRenameUI();
+            loadFiles(); // Refresh list
+        } catch (err) {
+            alert('Rename failed: ' + err.message);
+        }
+    });
+
+    function resetRenameUI() {
+        renameContainer.classList.add('hidden');
+        renameFileBtn.classList.remove('hidden');
+        currentFilenameEl.classList.remove('hidden');
+    }
 
     moveModeBtn.addEventListener('click', () => {
         showMoveView();
@@ -187,6 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         let entryCount = '?';
         let size = '? KB';
         let date = '';
+        let displayName = filename;
 
         try {
             const fileData = await FsStorage.readJson(filename);
@@ -196,6 +283,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                  // Backward compatibility if root is array
                 entryCount = fileData.data.length;
             }
+            
+            if (fileData.data.name) {
+                displayName = `${fileData.data.name} (${filename})`;
+            }
+
             size = (fileData.size / 1024).toFixed(1) + ' KB';
             date = new Date(fileData.lastModified).toLocaleString();
         } catch (e) {
@@ -204,7 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         div.innerHTML = `
             <div class="card-header">
-                <span class="file-name">${filename}</span>
+                <span class="file-name" title="${filename}">${displayName}</span>
             </div>
             <div class="card-meta">
                 <span>${entryCount} entries</span>
@@ -249,13 +341,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const result = await FsStorage.readJson(filename);
             // Handle wrapper object or direct array
+            let entries = [];
+            let name = null;
+
             if (result.data.entries && Array.isArray(result.data.entries)) {
-                currentData = result.data.entries;
+                entries = result.data.entries;
+                name = result.data.name;
             } else if (Array.isArray(result.data)) {
-                currentData = result.data;
-            } else {
-                currentData = [];
+                entries = result.data;
             }
+            
+            currentData = entries;
+            // Store name on the array object for convenience
+            currentData.name = name;
+            
             renderEntries(currentData);
         } catch (err) {
             console.error('Error reading file:', err);
@@ -295,15 +394,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <h4>Target Element</h4>
                     <div class="info-row">
                         <span class="info-label">Tag:</span>
-                        <span class="info-value">${entry.elementInfo?.tagName || '-'}</span>
+                        <input type="text" class="info-input" value="${entry.elementInfo?.tagName || ''}" data-field="tagName" data-entry-index="${index}">
                     </div>
                     <div class="info-row">
                         <span class="info-label">Text:</span>
-                        <span class="info-value">${(entry.elementInfo?.textContent || '').substring(0, 50)}...</span>
+                        <input type="text" class="info-input" value="${entry.elementInfo?.textContent || ''}" data-field="textContent" data-entry-index="${index}">
                     </div>
                      <div class="info-row">
                         <span class="info-label">URL:</span>
-                        <span class="info-value">${entry.elementInfo?.url || '-'}</span>
+                        <input type="text" class="info-input" value="${entry.elementInfo?.url || ''}" data-field="url" data-entry-index="${index}">
                     </div>
                 </div>
                 <div class="entry-section">
@@ -314,26 +413,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             </div>
         `;
+        
+        // Listeners for info inputs (Tag, Text, URL)
+        const infoInputs = div.querySelectorAll('.info-input');
+        infoInputs.forEach(input => {
+            input.addEventListener('change', (e) => {
+                const field = e.target.dataset.field;
+                const value = e.target.value;
+                if (!currentData[index].elementInfo) {
+                    currentData[index].elementInfo = {};
+                }
+                currentData[index].elementInfo[field] = value;
+            });
+        });
 
-        const inputs = div.querySelectorAll('.selector-input');
-        inputs.forEach(input => {
+        const selectorInputs = div.querySelectorAll('.selector-input');
+        selectorInputs.forEach(input => {
             input.addEventListener('change', (e) => {
                 const key = e.target.dataset.key;
                 const value = e.target.value;
-                // Since the object structure is unpredictable (based on keys), we just update the value
-                // Wait, existing structure is { selectors: { id: "foo", classes: "bar" } } OR { selectors: { id: {value: "foo", valid: true} } }?
-                // Looking at sidepanel.js, it seems `selectors` is key-value map directly from selector-core.js?
-                // "selectors" in sidepanel.js seems to be key: value string.
-                // BUT sidepanel.js handles `message.data` which has `selectors` and `validation`.
-                // When saving history, `addToHistory({ selectors, validation, elementInfo })` is used.
-                // So `entry.selectors` is likely `{ id: "#foo", class: ".bar" }`.
-                // Wait, in `renderSelectors` below, I check for `obj.valid`.
-                // Ah, the saved format includes `selectors` (values) and `validation` (booleans).
-                
-                // My `renderSelectors` function assumed `selectors[key]` is an object `{value, valid}`.
-                // But actually `entry` has `selectors` object and `validation` object separately.
-                
-                // FIX: update the value in `entry.selectors`
                 if (currentData[index].selectors) {
                      currentData[index].selectors[key] = value;
                 }

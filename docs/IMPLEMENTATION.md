@@ -388,6 +388,59 @@
   1. 현재 활성 탭의 콘텐츠 스크립트로 검증 요청
   2. 결과 표시 (✓/✗)
 
+#### 저장 Modal ✨ NEW
+
+**Modal DOM 요소**
+- `saveModal` - Modal overlay
+- `saveNameInput` - 이름 입력 필드
+- `summaryTotal` - 총 entry 수 표시
+- `summaryUrls` - URL 목록 표시
+- `summaryTags` - 태그 분포 표시
+
+**`openSaveModal()`**
+- 용도: 저장 Modal 열기 및 요약 정보 표시
+- 동작:
+  1. Modal 표시 (display: flex)
+  2. 입력 필드 초기화 및 포커스
+  3. calculateSummary() 호출하여 요약 정보 계산
+  4. 요약 정보 렌더링 (총 entry 수, URL 목록, 태그 분포)
+
+**`closeSaveModal()`**
+- 용도: Modal 닫기
+- 동작: Modal 숨기기 (display: none)
+
+**`calculateSummary(historyData)`**
+- 용도: 히스토리 데이터에서 요약 정보 계산
+- 입력: history 배열
+- 반환: `{ totalEntries, urls, tagCounts }`
+- 동작:
+  1. URL 중복 제거 (Set 사용)
+  2. 태그 빈도 계산
+  3. 총 entry 수 계산
+
+**파일명 검증**
+- 실시간 입력 검증: `/^[a-zA-Z0-9-]*$/` 정규식
+- 허용 문자: 영문, 숫자, 하이픈(-)만
+- 한글 및 특수문자 입력 시 즉시 제거
+- 유효하지 않은 입력 시 `invalid` 클래스 추가
+
+**`confirmSaveBtn` 이벤트 핸들러**
+- 용도: Modal에서 저장 확정
+- 동작:
+  1. 입력된 이름 가져오기 및 검증
+  2. 파일명 생성: `selectors-{name}-{timestamp}.json`
+  3. 이름이 없으면: `selectors-{timestamp}.json`
+  4. JSON 데이터에 `name` 필드 포함
+  5. FsStorage.saveJson() 호출
+  6. 성공 메시지 표시 및 Modal 닫기
+
+**Modal 닫기 트리거**
+- X 버튼 클릭
+- 취소 버튼 클릭
+- Escape 키
+- Overlay 클릭
+- Enter 키 (저장 실행)
+
 ---
 
 ## 🔧 lib/idb-helper.js
@@ -534,6 +587,26 @@
 - 동작:
   1. dirHandle이 없으면 restoreHandle() 호출
   2. 핸들 반환
+
+**`renameFile(oldName, newName, newInternalName)`** ✨ NEW
+- 용도: JSON 파일 이름 변경 (파일 시스템에는 rename API가 없으므로 읽기→저장→삭제 방식)
+- 입력:
+  - `oldName`: 기존 파일명
+  - `newName`: 새 파일명
+  - `newInternalName`: JSON 내부 `name` 필드 값 (optional)
+- 반환: Promise<boolean>
+- 동작:
+  1. 권한 확인
+  2. 기존 파일 읽기 (getFileHandle → getFile → text → JSON.parse)
+  3. JSON 내부 `name` 필드 업데이트 (newInternalName 제공 시)
+  4. 새 파일명으로 저장 (saveJson)
+  5. 기존 파일 삭제 (deleteFile)
+  6. true 반환
+- 예외:
+  - 파일 읽기 실패
+  - 저장 실패
+  - 삭제 실패
+- 주의: 트랜잭션이 아니므로 중간에 실패하면 두 파일이 모두 존재할 수 있음
 
 #### 사용 사례
 
@@ -707,6 +780,95 @@
   2. right 파일 저장
   3. 성공 알림
 
+#### 파일명 Rename 기능 ✨ NEW
+
+**UI 요소**
+- `renameFileBtn` - Rename 버튼 (연필 아이콘)
+- `renameContainer` - Rename 입력 UI (숨김 상태)
+- `renameInput` - 새 이름 입력 필드
+- `confirmRenameBtn` - 확인 버튼
+- `cancelRenameBtn` - 취소 버튼
+
+**`renameFileBtn` 클릭**
+- 용도: Rename UI 표시 및 초기화
+- 동작:
+  1. 파일명 표시 숨기고 Rename UI 표시
+  2. 현재 파일명에서 name 부분 추출
+  3. 정규식: `/^selectors-(.*)-(\d{4}-\d{2}-\d{2}T.*)\.json$/`
+  4. 추출된 name을 input에 설정
+  5. input에 포커스
+
+**`confirmRenameBtn` 클릭**
+- 용도: Rename 실행
+- 동작:
+  1. 입력값 가져오기 및 trim
+  2. 빈 값 검증
+  3. 파일명 규칙 검증 (`/^[a-zA-Z0-9-]+$/`)
+  4. 기존 파일명에서 timestamp 부분 추출
+  5. 새 파일명 생성: `selectors-{newName}-{timestamp}.json`
+  6. FsStorage.renameFile() 호출
+  7. 성공 시 currentFile 업데이트 및 UI 초기화
+  8. 파일 목록 새로고침
+
+**`cancelRenameBtn` 클릭**
+- 용도: Rename 취소
+- 동작: resetRenameUI() 호출
+
+**`resetRenameUI()`**
+- 용도: Rename UI 숨기고 원래 상태로 복원
+- 동작:
+  1. renameContainer 숨김
+  2. renameFileBtn 및 currentFilenameEl 표시
+
+#### Entry 정보 편집 ✨ NEW
+
+**편집 가능한 필드**
+- `Tag` (elementInfo.tagName)
+- `Text` (elementInfo.textContent)
+- `URL` (elementInfo.url)
+
+**구현 방식**
+- 기존 `<span class="info-value">` → `<input class="info-input">`으로 변경
+- 각 input에 `data-field`, `data-entry-index` 속성 추가
+- `change` 이벤트 리스너로 currentData 업데이트
+
+**이벤트 핸들러**
+```javascript
+infoInputs.forEach(input => {
+  input.addEventListener('change', (e) => {
+    const field = e.target.dataset.field;
+    const value = e.target.value;
+    currentData[index].elementInfo[field] = value;
+  });
+});
+```
+
+**저장 시 보존**
+- Save 버튼 클릭 시 currentData를 그대로 저장
+- elementInfo 필드의 변경사항이 자동 포함됨
+
+#### 파일 카드에 name 표시 ✨ NEW
+
+**`createFileCard(filename)`** 업데이트
+- JSON 파일 읽기 시 `data.name` 필드 확인
+- `name` 필드가 있으면:
+  - 표시: `{name} ({filename})`
+  - 예: `login-page (selectors-login-page-2026-02-08T11-28-00.json)`
+- `name` 필드가 없으면:
+  - 기존처럼 파일명만 표시
+
+**저장 시 name 필드 보존**
+- `loadFileDetail()`에서 `currentData.name = name` 설정
+- Save 버튼 클릭 시:
+  ```javascript
+  const exportData = {
+    name: currentData.name || null,
+    exportedAt: new Date().toISOString(),
+    totalEntries: currentData.length,
+    entries: currentData
+  };
+  ```
+
 #### 사용 예시
 
 ```javascript
@@ -732,15 +894,33 @@ await FsStorage.saveJson(currentFile, {
 
 ## 📊 구현 현황 요약
 
-| 모듈 | 상태 | 구현 함수 개수 |
-|------|------|---|
-| selector-core.js | ✅ 완성 | 8+ |
-| content.js | ✅ 완성 | 10+ |
-| background.js | ✅ 완성 | 6+ |
-| sidepanel.js | ✅ 완성 | 10+ |
-| dashboard.js | ✅ 완성 | 15+ |
-| lib/idb-helper.js | ✅ 완성 | 4 |
-| lib/fs-storage.js | ✅ 완성 | 9 (4개 추가) |
+| 모듈 | 상태 | 구현 함수 개수 | 최근 업데이트 |
+|------|------|---|---|
+| selector-core.js | ✅ 완성 | 8+ | - |
+| content.js | ✅ 완성 | 10+ | - |
+| background.js | ✅ 완성 | 6+ | - |
+| sidepanel.js | ✅ 완성 | 14+ | ✨ Modal 기능 추가 (4개 함수) |
+| dashboard.js | ✅ 완성 | 20+ | ✨ Rename + Entry 편집 (5개 함수) |
+| lib/idb-helper.js | ✅ 완성 | 4 | - |
+| lib/fs-storage.js | ✅ 완성 | 10 | ✨ renameFile() 추가 |
 
-**총 함수/기능: 50+ 개 구현 완료**
+**총 함수/기능: 60+ 개 구현 완료**
+
+### 최근 추가된 기능 (2026-02-08)
+
+#### 저장 Modal (sidepanel.js)
+- ✅ 이름 입력 및 실시간 검증 (영문/숫자/하이픈만)
+- ✅ 요약 정보 표시 (총 entry 수, URL 목록, 태그 분포)
+- ✅ 파일명 규칙: `selectors-{name}-{timestamp}.json`
+- ✅ JSON 내부 `name` 필드 저장
+- ✅ Modal UI/UX (Escape, Enter, Overlay 클릭)
+
+#### 대시보드 편집 기능 (dashboard.js)
+- ✅ 파일명 Rename (인라인 편집 UI)
+- ✅ Entry 정보 편집 (Tag, Text, URL)
+- ✅ 파일 카드에 name 표시 지원
+- ✅ 저장 시 name 필드 보존
+
+#### 파일 시스템 (fs-storage.js)
+- ✅ renameFile() 함수 (읽기→저장→삭제 방식)
 

@@ -26,6 +26,16 @@ const historyCount = document.getElementById('historyCount');
 const exportBtn = document.getElementById('exportBtn');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 
+// Modal Elements
+const saveModal = document.getElementById('saveModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+const confirmSaveBtn = document.getElementById('confirmSaveBtn');
+const saveNameInput = document.getElementById('saveNameInput');
+const summaryTotal = document.getElementById('summaryTotal');
+const summaryUrls = document.getElementById('summaryUrls');
+const summaryTags = document.getElementById('summaryTags');
+
 // ------------------------------------------------------------------------
 // Initialization
 // ------------------------------------------------------------------------
@@ -259,23 +269,116 @@ dirBtn.addEventListener('click', async () => {
 });
 
 // Save JSON
-savBtn.addEventListener('click', async () => {
+savBtn.addEventListener('click', () => {
     if (history.length === 0) return;
+    openSaveModal();
+});
+
+// Modal Logic
+function openSaveModal() {
+    saveModal.style.display = 'flex';
+    saveNameInput.value = '';
+    saveNameInput.focus();
     
+    // Calculate Summary
+    const summary = calculateSummary(history);
+    
+    summaryTotal.textContent = `${summary.totalEntries}개`;
+    
+    summaryUrls.innerHTML = '';
+    summary.urls.forEach(url => {
+        const div = document.createElement('div');
+        div.className = 'summary-url-item';
+        div.textContent = url;
+        div.title = url;
+        summaryUrls.appendChild(div);
+    });
+    
+    const tags = Object.entries(summary.tagCounts)
+        .map(([tag, count]) => `${tag}(${count})`)
+        .join(', ');
+    summaryTags.textContent = tags || '-';
+}
+
+function closeSaveModal() {
+    saveModal.style.display = 'none';
+}
+
+function calculateSummary(historyData) {
+    const urls = [...new Set(historyData.map(e => e.elementInfo?.url).filter(Boolean))];
+    const tagCounts = {};
+    historyData.forEach(e => {
+        const tag = e.elementInfo?.tagName || 'UNKNOWN';
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    });
+    return { totalEntries: historyData.length, urls, tagCounts };
+}
+
+// Modal Event Listeners
+closeModalBtn.addEventListener('click', closeSaveModal);
+cancelSaveBtn.addEventListener('click', closeSaveModal);
+
+saveNameInput.addEventListener('input', () => {
+    const value = saveNameInput.value;
+    const isValid = /^[a-zA-Z0-9-]*$/.test(value);
+    
+    if (!isValid) {
+        saveNameInput.classList.add('invalid');
+        // Remove invalid characters immediately
+        saveNameInput.value = value.replace(/[^a-zA-Z0-9-]/g, '');
+    } else {
+        saveNameInput.classList.remove('invalid');
+    }
+});
+
+saveNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        confirmSaveBtn.click();
+    } else if (e.key === 'Escape') {
+        closeSaveModal();
+    }
+});
+
+// Confirm Save
+confirmSaveBtn.addEventListener('click', async () => {
+    const name = saveNameInput.value.trim();
+    // Validate again just in case
+    if (name && !/^[a-zA-Z0-9-]+$/.test(name)) {
+        alert('이름에는 영문, 숫자, 하이픈(-)만 사용할 수 있습니다.');
+        return;
+    }
+
+    const timestamp = new Date();
+    const timestampStr = timestamp.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    
+    let filename;
+    if (name) {
+        filename = `selectors-${name}-${timestampStr}.json`;
+    } else {
+        filename = `selectors-${timestampStr}.json`;
+    }
+
     const data = {
-        exportedAt: new Date().toISOString(),
+        name: name || null,
+        exportedAt: timestamp.toISOString(),
         totalEntries: history.length,
         entries: history
     };
-    
-    const filename = `selectors-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.json`;
-    
+
     try {
         await FsStorage.saveJson(filename, data);
         footerStatus.textContent = `저장됨: ${filename}`;
+        closeSaveModal();
         setTimeout(() => footerStatus.textContent = '준비됨', 3000);
     } catch (err) {
-        footerStatus.textContent = `저장 실패: ${err.message}`;
+        alert(`저장 실패: ${err.message}`);
+    }
+});
+
+// Close modal on outside click
+saveModal.addEventListener('click', (e) => {
+    if (e.target === saveModal) {
+        closeSaveModal();
     }
 });
 

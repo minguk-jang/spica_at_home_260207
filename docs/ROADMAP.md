@@ -28,6 +28,34 @@
   - ✅ API.md 업데이트
   - ✅ README.md 업데이트
 
+#### 2. 저장 Modal + 편집 기능 확장 ⭐ 완료 (2026-02-08)
+- **상태**: ✅ 완료
+- **설명**: 저장 시 이름 입력 Modal 및 대시보드 편집 기능 확장
+- **구현된 기능**:
+  - ✅ 저장 Modal (sidepanel)
+    - 이름 입력 필드 (영문/숫자/하이픈만)
+    - 요약 정보 (총 entry 수, URL 목록, 태그 분포)
+    - 파일명: `selectors-{name}-{timestamp}.json`
+    - JSON 내부 `name` 필드 저장
+  - ✅ 대시보드 파일명 Rename
+    - 인라인 편집 UI (연필 아이콘)
+    - 파일명 검증 및 timestamp 보존
+  - ✅ Entry 정보 편집
+    - Tag, Text, URL 필드 편집 가능
+  - ✅ 파일 카드에 name 표시
+    - `name (filename)` 형식
+- **파일**:
+  - `sidepanel.html` (Modal UI 추가)
+  - `sidepanel.css` (Modal 스타일)
+  - `sidepanel.js` (Modal 로직, 4개 함수)
+  - `dashboard.html` (Rename UI)
+  - `dashboard.js` (Rename + Entry 편집, 5개 함수)
+  - `dashboard.css` (input 스타일)
+  - `lib/fs-storage.js` (renameFile 함수)
+- **문서화**:
+  - ✅ SAVE_MODAL_AND_EDIT_PLAN.md (구현 계획)
+  - ✅ IMPLEMENTATION.md 업데이트
+
 ---
 
 ### 🔴 Phase 1: 핵심 기능 완성 (필수)
