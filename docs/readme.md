@@ -1,34 +1,144 @@
+# Selector Collector v2 - 사용자 가이드
 
-홈페이지 내 요소의 셀렉터가 여러개일 수 있는데 내가 클릭한 것들의 모든 셀렉터를 수집 할 수 있어? F12 dev tool의 recorder는 할 수 있던데
-오후 7:50
+> Chrome Extension으로 웹페이지의 요소를 클릭하면 모든 가능한 셀렉터를 자동으로 수집합니다.
 
-클릭 요소의 다양한 셀렉터를 수집하는 JavaScript 도구 설계했다
-네, 만들어 드릴 수 있습니다! 클릭한 요소의 가능한 모든 셀렉터를 수집하는 도구를 만들어 드릴게요.
+## 🎯 주요 기능
 
-도구의 다양한 셀렉터 수집 기능을 종합적으로 검토했습니다
-Selector Collector 도구를 만들었습니다! 세 가지 방법으로 사용할 수 있어요.
-🎯 수집하는 셀렉터 종류
-타입	예시
-ID	#login-btn
-Classes	.btn.btn-primary
-Tag	button
-속성	button[data-testid="submit"]
-nth-child	div:nth-child(3)
-Full Path	#app > div > button:nth-child(2)
-XPath	//button[@id="login"]
-Text XPath	//button[contains(text(),'로그인')]
-사용 방법
-1. 북마클릿 (권장)
-HTML 파일을 열고 초록색 버튼을 북마크바로 드래그
-아무 웹페이지에서 클릭하면 바로 사용
-2. 콘솔 스크립트
-F12 → Console에 스크립트 붙여넣기
-window.selectorCollector.toggle() 로 켜기/끄기
-window.selectorCollector.getHistory() 로 수집 내역 조회
-3. 데모 탭
-HTML 파일에서 직접 테스트 가능
-추가 기능
-📜 클릭 히스토리 저장 (최대 20개)
-📥 JSON으로 내보내기
-📋 원클릭 복사
-Chrome DevTools Recorder처럼 요소를 클릭하면 가능한 모든 셀렉터가 자동으로 수집됩니다!
+### ✨ 강력한 셀렉터 수집
+클릭한 요소의 다양한 선택자를 자동 생성합니다:
+- **ID 선택자**: `#element-id`
+- **클래스 선택자**: `.class1.class2`
+- **속성 선택자**: `[data-testid="value"]`
+- **XPath**: `//button[@id="login"]`
+- **텍스트 기반**: `//button[contains(text(),'로그인')]`
+- **Full Path**: `#app > div > button:nth-of-type(2)`
+
+### 📜 히스토리 관리
+- 최대 20개 수집 항목 자동 저장
+- 각 항목의 모든 셀렉터 검토
+- 유효성 실시간 검증
+- 원클릭 복사
+
+### 💾 데이터 저장
+- 수집 데이터를 JSON으로 내보내기
+- 로컬 파일 시스템에 직접 저장
+- 권한 기반 안전한 저장
+
+## 🚀 빠른 시작
+
+### 1️⃣ 설치
+1. Chrome에서 확장 프로그램 열기
+2. 개발자 모드 활성화
+3. 이 프로젝트를 "압축 해제된 확장 프로그램으로 로드"
+
+### 2️⃣ 사용
+1. 확장 아이콘 클릭
+2. "Start Collecting" 버튼 클릭
+3. 웹페이지에서 원하는 요소 클릭
+4. 셀렉터들이 자동으로 수집됨
+5. 필요시 "Save" 또는 "Export" 클릭
+
+### 3️⃣ 데이터 내보내기
+1. 사이드패널에서 "Export" 버튼 클릭
+2. 저장할 디렉토리 선택
+3. JSON 파일로 자동 저장됨
+
+## 📚 문서
+
+프로젝트의 자세한 정보는 다음 문서들을 참고하세요:
+
+- **[STRUCTURE.md](./STRUCTURE.md)** - 프로젝트 구조 및 파일 설명
+- **[IMPLEMENTATION.md](./IMPLEMENTATION.md)** - 구현된 모든 함수 및 기능
+- **[API.md](./API.md)** - API 명세 및 메시지 프로토콜
+- **[ROADMAP.md](./ROADMAP.md)** - 개발 계획 및 향후 기능
+
+## 🏗️ 프로젝트 구조
+
+```
+selector_collector_ver2/
+├── docs/                      # 📚 문서
+│   ├── README.md             # 이 파일
+│   ├── STRUCTURE.md          # 프로젝트 구조
+│   ├── IMPLEMENTATION.md      # 구현된 기능
+│   ├── API.md                # API 문서
+│   └── ROADMAP.md            # 개발 계획
+│
+├── lib/                       # 🔧 유틸리티
+│   ├── idb-helper.js         # IndexedDB 래퍼
+│   └── fs-storage.js         # 파일 시스템 API
+│
+├── icons/                     # 🎨 아이콘
+├── manifest.json             # 확장 설정
+├── selector-core.js          # 셀렉터 엔진
+├── content.js                # 콘텐츠 스크립트
+├── background.js             # 서비스 워커
+├── sidepanel.js              # 사이드패널 로직
+├── sidepanel.html            # UI 마크업
+└── sidepanel.css             # 스타일
+```
+
+## 💡 사용 예시
+
+### Web Testing Automation
+Selenium, Cypress, Playwright 등의 테스트 자동화 도구에서 안정적인 셀렉터가 필요할 때 사용합니다.
+
+```javascript
+// Selenium Example
+const button = driver.find_element("css selector", "#submit-btn")
+
+// 또는 XPath
+const button = driver.find_element("xpath", "//button[@id='submit']")
+```
+
+### Web Scraping
+웹 크롤러에서 정확한 요소 선택자가 필요할 때:
+
+```python
+# BeautifulSoup / Selenium
+elements = driver.find_elements("css selector", ".product-item")
+```
+
+### 개발자 도구
+웹 개발 중 요소 선택에 어려움이 있을 때 빠르게 여러 셀렉터를 시도해볼 수 있습니다.
+
+## ⚡ 팁 및 트릭
+
+1. **여러 셀렉터 생성**: 한 번의 클릭으로 8가지 이상의 셀렉터 자동 생성
+2. **유효성 검증**: 생성된 셀렉터의 유효성 자동 확인
+3. **빠른 복사**: 각 셀렉터 옆의 복사 버튼으로 즉시 클립보드 복사
+4. **히스토리 관리**: 이전 클릭 항목들을 언제든 다시 확인 가능
+5. **JSON 내보내기**: 모든 수집 데이터를 JSON으로 저장하여 재사용
+
+## 🔒 개인정보 보호
+
+- 모든 데이터는 **로컬에만 저장**됩니다
+- 클라우드로 전송되지 않습니다
+- 사용자가 명시적으로 "Export"할 때만 파일로 저장됩니다
+- 언제든 히스토리 전체 삭제 가능합니다
+
+## 🐛 문제 해결
+
+### 확장이 제대로 로드되지 않음
+- manifest.json 문법 확인
+- Chrome 버전 90 이상 필요
+- 개발자 모드 활성화 필수
+
+### 셀렉터가 수집되지 않음
+1. "Start Collecting" 활성화 확인
+2. 웹페이지가 보안 페이지(HTTPS)인지 확인
+3. 새로고침(Ctrl+R) 후 다시 시도
+
+### 파일 저장이 안 됨
+1. "Select Directory" 버튼으로 디렉토리 선택
+2. 폴더 쓰기 권한 확인
+3. 브라우저 권한 설정 확인
+
+## 🤝 기여
+
+이 프로젝트의 개선사항이나 버그 리포트는 언제든 환영합니다!
+
+## 📖 추가 참고
+
+- [Chrome Extension Documentation](https://developer.chrome.com/docs/extensions/)
+- [MDN - CSS Selectors](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors)
+- [MDN - XPath](https://developer.mozilla.org/en-US/docs/Web/XPath)
