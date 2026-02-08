@@ -497,6 +497,44 @@
 - 반환: boolean
 - 예: `if (FsStorage.isReady()) { ... }`
 
+**`listJsonFiles()`** ✨ 대시보드용
+- 용도: 설정된 디렉토리에서 `selectors-*.json` 파일 목록 가져오기
+- 반환: Promise<string[]>
+- 동작:
+  1. 권한 확인
+  2. dirHandle.values()로 파일 순회
+  3. selectors-로 시작하고 .json으로 끝나는 파일만 필터
+  4. 최신 파일부터 정렬 (역순)
+- 예외: "Directory access permission not granted"
+
+**`readJson(filename)`** ✨ 대시보드용
+- 용도: JSON 파일 읽기 및 메타데이터 반환
+- 입력: 파일명 (예: "selectors-2026-02-08.json")
+- 반환: Promise<{filename, data, lastModified, size}>
+- 동작:
+  1. 권한 확인
+  2. getFileHandle()로 파일 핸들 가져오기
+  3. file.text()로 내용 읽기
+  4. JSON.parse()로 파싱
+  5. 메타데이터와 함께 반환
+- 예외: 파일이 없거나 JSON 파싱 실패 시 에러
+
+**`deleteFile(filename)`** ✨ 대시보드용
+- 용도: JSON 파일 삭제
+- 입력: 파일명
+- 반환: Promise<void>
+- 동작:
+  1. 권한 확인
+  2. dirHandle.removeEntry()로 파일 삭제
+- 예외: "Directory access permission not granted"
+
+**`getDirHandle()`** ✨ 대시보드용
+- 용도: 현재 디렉토리 핸들 반환
+- 반환: Promise<FileSystemDirectoryHandle | null>
+- 동작:
+  1. dirHandle이 없으면 restoreHandle() 호출
+  2. 핸들 반환
+
 #### 사용 사례
 
 1. **디렉토리 선택**
@@ -519,6 +557,179 @@
 
 ---
 
+## 📊 dashboard.js
+### 대시보드 - JSON 파일 관리 및 편집
+
+저장된 JSON 파일을 불러와서 편집, 삭제, 파일 간 이동하는 대시보드 UI를 제공합니다.
+
+#### 상태 관리
+
+- `currentFile` - 현재 편집 중인 파일명
+- `currentData` - 현재 편집 중인 entry 배열
+- `moveData` - 이동 모드의 좌/우 패널 데이터
+  - `{ left: { file, data }, right: { file, data } }`
+- `draggedItem` - 드래그 중인 항목 정보
+
+#### 뷰 모드
+
+**메인 뷰 (Main View)**
+- 파일 카드 그리드로 JSON 파일 목록 표시
+- 각 카드: 파일명, entry 수, 파일 크기, 수정 시간
+- 액션: Open, Delete
+
+**상세 뷰 (Detail View)**
+- 단일 파일의 모든 entry 표시
+- entry별 편집 가능:
+  - 셀렉터 값 인라인 수정
+  - elementInfo 정보 표시
+  - validation 상태 표시 (✅❌❓)
+  - entry 삭제, 순서 변경
+- Save 버튼으로 파일 저장
+
+**이동 뷰 (Move View)**
+- 좌/우 패널에 두 JSON 파일 표시
+- 드래그 앤 드롭으로 entry 이동
+- Save Both 버튼으로 양쪽 파일 저장
+
+#### 주요 함수
+
+**`init()`**
+- 용도: 초기화
+- 동작:
+  1. FsStorage 준비 확인
+  2. 핸들 복원 시도
+  3. 파일 목록 로드 또는 Empty State 표시
+
+**`loadFiles()`**
+- 용도: JSON 파일 목록 로드 및 표시
+- 동작:
+  1. FsStorage.listJsonFiles() 호출
+  2. 각 파일에 대해 createFileCard() 생성
+  3. 파일 셀렉트 드롭다운 업데이트
+
+**`createFileCard(filename)`**
+- 용도: 파일 카드 DOM 요소 생성
+- 입력: 파일명
+- 반환: HTMLElement
+- 동작:
+  1. FsStorage.readJson()로 메타데이터 읽기
+  2. entry 수, 파일 크기, 날짜 표시
+  3. Open/Delete 버튼 이벤트 바인딩
+
+**`showDetailView(filename)`**
+- 용도: 상세 편집 뷰로 전환
+- 동작:
+  1. 뷰 전환
+  2. loadFileDetail() 호출
+
+**`loadFileDetail(filename)`**
+- 용도: 파일 내용 로드 및 entry 렌더링
+- 동작:
+  1. FsStorage.readJson() 호출
+  2. entries 배열 추출
+  3. renderEntries() 호출
+
+**`renderEntries(data)`**
+- 용도: entry 목록 렌더링
+- 동작:
+  1. 각 entry에 대해 createEntryElement() 호출
+  2. DOM에 추가
+
+**`createEntryElement(entry, index)`**
+- 용도: 단일 entry DOM 요소 생성
+- 반환: HTMLElement
+- 동작:
+  1. elementInfo 표시 (tag, text, URL)
+  2. selectors 인라인 편집 필드 생성
+  3. validation 상태 아이콘 표시
+  4. Remove 버튼 이벤트 바인딩
+  5. input change 이벤트로 currentData 업데이트
+
+**`renderSelectors(selectors, entryIndex)`**
+- 용도: 셀렉터 목록 HTML 생성
+- 반환: string (HTML)
+- 동작:
+  1. selectors 객체 순회
+  2. 각 셀렉터마다 key, input, validation icon 생성
+  3. validation 데이터와 결합하여 ✅❌❓ 표시
+
+**드래그 앤 드롭 함수**
+
+**`showMoveView()`**
+- 용도: 이동 모드로 전환
+
+**`loadMoveFile(side, filename)`**
+- 용도: 좌/우 패널에 파일 로드
+- 입력: 'left' | 'right', 파일명
+- 동작:
+  1. FsStorage.readJson() 호출
+  2. moveData[side] 업데이트
+  3. renderMoveList(side) 호출
+
+**`renderMoveList(side)`**
+- 용도: 패널에 entry 목록 렌더링
+- 동작:
+  1. entry마다 draggable div 생성
+  2. dragstart 이벤트 바인딩
+  3. drop zone 이벤트 설정
+
+**`handleDragStart(e)`**
+- 용도: 드래그 시작 처리
+- 동작:
+  1. draggedItem에 side, index 저장
+  2. dragging 클래스 추가
+
+**`handleDragOver(e)`**
+- 용도: 드롭 존 하이라이트
+- 동작: drag-over 클래스 추가
+
+**`handleDrop(e, targetSide)`**
+- 용도: 드롭 처리 및 entry 이동
+- 동작:
+  1. 같은 패널이면 무시
+  2. 원본에서 splice로 제거
+  3. 대상에 push
+  4. 양쪽 패널 재렌더링
+
+**저장 함수**
+
+**`saveBtn.addEventListener('click')`**
+- 용도: 상세 뷰에서 수정사항 저장
+- 동작:
+  1. exportData 객체 생성 (exportedAt, totalEntries, entries)
+  2. FsStorage.saveJson() 호출
+  3. 성공 알림
+
+**`moveSaveBtn.addEventListener('click')`**
+- 용도: 이동 뷰에서 양쪽 파일 저장
+- 동작:
+  1. left 파일 저장
+  2. right 파일 저장
+  3. 성공 알림
+
+#### 사용 예시
+
+```javascript
+// 파일 목록 로드
+await loadFiles();
+
+// 파일 읽기
+const result = await FsStorage.readJson('selectors-2026-02-08.json');
+currentData = result.data.entries;
+
+// 셀렉터 수정
+currentData[0].selectors['id'] = '#new-id';
+
+// 저장
+await FsStorage.saveJson(currentFile, {
+  exportedAt: new Date().toISOString(),
+  totalEntries: currentData.length,
+  entries: currentData
+});
+```
+
+---
+
 ## 📊 구현 현황 요약
 
 | 모듈 | 상태 | 구현 함수 개수 |
@@ -527,8 +738,9 @@
 | content.js | ✅ 완성 | 10+ |
 | background.js | ✅ 완성 | 6+ |
 | sidepanel.js | ✅ 완성 | 10+ |
+| dashboard.js | ✅ 완성 | 15+ |
 | lib/idb-helper.js | ✅ 완성 | 4 |
-| lib/fs-storage.js | ✅ 완성 | 5 |
+| lib/fs-storage.js | ✅ 완성 | 9 (4개 추가) |
 
 **총 함수/기능: 50+ 개 구현 완료**
 

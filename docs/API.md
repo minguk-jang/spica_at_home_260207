@@ -368,6 +368,35 @@ const restored = await FsStorage.restoreHandle();
  * @returns {boolean} 디렉토리 준비됨 여부
  */
 const ready = FsStorage.isReady();
+
+/**
+ * JSON 파일 목록 가져오기 (대시보드용)
+ * @returns {Promise<string[]>} selectors-*.json 파일명 배열 (최신순)
+ * @throws {Error} 권한 없을 시 예외
+ */
+const files = await FsStorage.listJsonFiles();
+
+/**
+ * JSON 파일 읽기 (대시보드용)
+ * @param {string} filename - 파일명
+ * @returns {Promise<{filename, data, lastModified, size}>} 파일 데이터 및 메타데이터
+ * @throws {Error} 파일이 없거나 JSON 파싱 실패 시
+ */
+const result = await FsStorage.readJson('selectors-2026-02-08.json');
+
+/**
+ * JSON 파일 삭제 (대시보드용)
+ * @param {string} filename - 파일명
+ * @returns {Promise<void>}
+ * @throws {Error} 권한 없을 시 예외
+ */
+await FsStorage.deleteFile('old-file.json');
+
+/**
+ * 디렉토리 핸들 반환 (대시보드용)
+ * @returns {Promise<FileSystemDirectoryHandle | null>}
+ */
+const handle = await FsStorage.getDirHandle();
 ```
 
 ### 사용 예시
@@ -439,11 +468,195 @@ if (FsStorage.isReady()) {
 
 ---
 
+## 📊 dashboard.js API
+
+### 개요
+저장된 JSON 파일을 관리, 편집, 이동하는 대시보드 페이지입니다.
+
+### 뷰 모드
+
+**Main View (메인 뷰)**
+- JSON 파일 목록을 카드 형태로 표시
+- 각 카드: 파일명, entry 수, 파일 크기, 수정 시간
+- 액션: Open (상세 뷰로 이동), Delete (파일 삭제)
+
+**Detail View (상세 편집 뷰)**
+- 단일 파일의 모든 entry 표시
+- entry별 셀렉터 인라인 편집 가능
+- validation 상태 표시 (✅ 유효, ❌ 무효, ❓ 미검증)
+- entry 삭제, 순서 변경
+- Save 버튼으로 파일 저장
+
+**Move View (이동 뷰)**
+- 좌/우 패널에 두 JSON 파일 동시 표시
+- 드래그 앤 드롭으로 entry 이동
+- Save Both 버튼으로 양쪽 파일 저장
+
+### 함수
+
+```javascript
+/**
+ * 초기화
+ * - FsStorage 준비 확인
+ * - 파일 목록 로드 또는 Empty State 표시
+ */
+async function init();
+
+/**
+ * JSON 파일 목록 로드 및 표시
+ */
+async function loadFiles();
+
+/**
+ * 파일 카드 DOM 생성
+ * @param {string} filename - 파일명
+ * @returns {Promise<HTMLElement>} 파일 카드 요소
+ */
+async function createFileCard(filename);
+
+/**
+ * 상세 편집 뷰로 전환
+ * @param {string} filename - 파일명
+ */
+function showDetailView(filename);
+
+/**
+ * 파일 내용 로드 및 entry 렌더링
+ * @param {string} filename - 파일명
+ */
+async function loadFileDetail(filename);
+
+/**
+ * Entry 목록 렌더링
+ * @param {Array} data - entry 배열
+ */
+function renderEntries(data);
+
+/**
+ * 단일 entry DOM 생성
+ * @param {Object} entry - entry 객체 {selectors, validation, elementInfo}
+ * @param {number} index - 배열 인덱스
+ * @returns {HTMLElement} entry 요소
+ */
+function createEntryElement(entry, index);
+
+/**
+ * 셀렉터 목록 HTML 생성
+ * @param {Object} selectors - 셀렉터 객체
+ * @param {number} entryIndex - entry 인덱스
+ * @returns {string} HTML 문자열
+ */
+function renderSelectors(selectors, entryIndex);
+
+/**
+ * 이동 모드로 전환
+ */
+function showMoveView();
+
+/**
+ * 좌/우 패널에 파일 로드
+ * @param {string} side - 'left' 또는 'right'
+ * @param {string} filename - 파일명
+ */
+async function loadMoveFile(side, filename);
+
+/**
+ * 패널에 entry 목록 렌더링
+ * @param {string} side - 'left' 또는 'right'
+ */
+function renderMoveList(side);
+```
+
+### 드래그 앤 드롭 이벤트
+
+```javascript
+/**
+ * 드래그 시작
+ * - draggedItem에 side, index 저장
+ */
+function handleDragStart(e);
+
+/**
+ * 드롭 존 하이라이트
+ */
+function handleDragOver(e);
+
+/**
+ * 드롭 처리 및 entry 이동
+ * - 원본에서 제거, 대상에 추가
+ * - 양쪽 패널 재렌더링
+ */
+function handleDrop(e, targetSide);
+```
+
+### 사용 예시
+
+```javascript
+// 대시보드 열기 (sidepanel에서)
+chrome.tabs.create({ url: 'dashboard.html' });
+
+// 파일 목록 로드
+await loadFiles();
+
+// 파일 읽기 및 편집
+const result = await FsStorage.readJson('selectors-2026-02-08.json');
+currentData = result.data.entries;
+
+// 셀렉터 수정
+currentData[0].selectors['id'] = '#new-id';
+
+// 저장
+await FsStorage.saveJson(currentFile, {
+  exportedAt: new Date().toISOString(),
+  totalEntries: currentData.length,
+  entries: currentData
+});
+
+// 파일 삭제
+await FsStorage.deleteFile('old-file.json');
+await loadFiles(); // 목록 갱신
+```
+
+### 데이터 구조
+
+```javascript
+// Entry 구조
+{
+  selectors: {
+    tag: "button",
+    id: "#submit-btn",
+    classes: ".btn.btn-primary",
+    "[data-testid]": "button[data-testid=\"submit\"]",
+    nthOfType: "button:nth-of-type(2)",
+    fullCssPath: "#form > div > button:nth-of-type(2)",
+    xpath: "//button[@id=\"submit\"]",
+    textXpath: "//button[contains(text(),'로그인')]"
+  },
+  validation: {
+    tag: true,
+    id: true,
+    classes: true,
+    // ...
+  },
+  elementInfo: {
+    tagName: "button",
+    id: "submit-btn",
+    className: "btn btn-primary",
+    textContent: "로그인",
+    url: "https://example.com",
+    timestamp: "2026-02-08T11:30:40.123Z"
+  }
+}
+```
+
+---
+
 ## 📋 체크리스트: API 호환성
 
 - ✅ Content Script 메시지: `START_COLLECTING`, `STOP_COLLECTING`, `PING`, `VALIDATE_SELECTOR`
 - ✅ Background 메시지: `GET_COLLECTING_STATE`, `SELECTORS_COLLECTED`
 - ✅ Sidepanel 메시지: `START_COLLECTING`, `STOP_COLLECTING`, `VALIDATE_SELECTOR`
+- ✅ Dashboard: `chrome.tabs.create()` 사용, FsStorage API 호출
 - ✅ IndexedDB 키: `selectorHistory`, `directoryHandle`, `userSettings`
 - ✅ 파일 시스템 권한: File System Access API Permissions
 

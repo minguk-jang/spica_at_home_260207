@@ -321,6 +321,14 @@ selectorsGrid.addEventListener('click', async (e) => {
     await copyToClipboard(copyBtn.dataset.selector, copyBtn);
 });
 
+// Dashboard Button
+const dashboardBtn = document.getElementById('dashboardBtn');
+if (dashboardBtn) {
+    dashboardBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'dashboard.html' });
+    });
+}
+
 // Message Listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'SELECTORS_COLLECTED') {

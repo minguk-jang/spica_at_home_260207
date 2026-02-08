@@ -4,6 +4,32 @@
 
 ## 📅 우선순위별 목록
 
+### ✅ Phase 0: 대시보드 구현 (완료)
+
+#### 1. JSON 파일 관리 대시보드 ⭐ 완료
+- **상태**: ✅ 완료
+- **설명**: 저장된 JSON 파일을 불러와서 관리/수정/이동하는 대시보드
+- **구현된 기능**:
+  - ✅ 파일 목록 카드 뷰 (파일명, entry 수, 크기, 날짜 표시)
+  - ✅ 상세 편집 뷰 (셀렉터 인라인 편집, validation 상태 표시)
+  - ✅ 드래그 앤 드롭으로 entry 파일 간 이동
+  - ✅ 파일 삭제 기능
+  - ✅ 사이드패널에서 "Dashboard" 버튼으로 접근
+- **파일**:
+  - `dashboard.html` (UI 마크업)
+  - `dashboard.js` (로직, 15+ 함수)
+  - `dashboard.css` (GitHub Dark 테마)
+  - `lib/fs-storage.js` (4개 함수 추가: listJsonFiles, readJson, deleteFile, getDirHandle)
+  - `sidepanel.html/js` (대시보드 버튼 추가)
+- **문서화**:
+  - ✅ DASHBOARD_PLAN.md (구현 계획)
+  - ✅ STRUCTURE.md 업데이트
+  - ✅ IMPLEMENTATION.md 업데이트
+  - ✅ API.md 업데이트
+  - ✅ README.md 업데이트
+
+---
+
 ### 🔴 Phase 1: 핵심 기능 완성 (필수)
 
 #### 1. 아이콘 생성 ⭐ 높은 우선순위

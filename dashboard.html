@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selector Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1>📊 Selector Dashboard</h1>
+            <div class="header-actions">
+                <button id="move-mode-btn" class="icon-btn" title="Move Mode">⇄</button>
+                <button id="refresh-btn" class="icon-btn" title="Refresh">↻</button>
+            </div>
+        </header>
+
+        <main id="main-view" class="view-section">
+            <div id="file-list" class="file-grid">
+                <!-- File cards will be inserted here -->
+            </div>
+            <div id="empty-state" class="hidden">
+                <p>No selector files found.</p>
+                <p>Make sure you have selected a directory and saved some selectors.</p>
+                <button id="select-dir-btn" class="primary-btn">Select Directory</button>
+            </div>
+        </main>
+
+        <section id="detail-view" class="view-section hidden">
+            <header class="detail-header">
+                <button id="back-btn" class="icon-btn">← Back</button>
+                <h2 id="current-filename">filename.json</h2>
+                <div class="detail-actions">
+                    <button id="save-btn" class="primary-btn">Save</button>
+                </div>
+            </header>
+            <div class="detail-content">
+                <div id="entry-list" class="entry-list">
+                    <!-- Entries will be inserted here -->
+                </div>
+            </div>
+        </section>
+
+        <section id="move-view" class="view-section hidden">
+            <div class="move-header">
+                <button id="move-back-btn" class="icon-btn">← Back</button>
+                <h2>Move Entries</h2>
+                <button id="move-save-btn" class="primary-btn">Save Both</button>
+            </div>
+            <div class="move-container">
+                <div class="move-panel" id="left-panel">
+                    <select class="file-select" id="left-file-select">
+                        <option value="">Select File...</option>
+                    </select>
+                    <div class="drop-zone" id="left-drop-zone"></div>
+                </div>
+                <div class="move-divider">⇄</div>
+                <div class="move-panel" id="right-panel">
+                    <select class="file-select" id="right-file-select">
+                        <option value="">Select File...</option>
+                    </select>
+                    <div class="drop-zone" id="right-drop-zone"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="lib/idb-helper.js"></script>
+    <script src="lib/fs-storage.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

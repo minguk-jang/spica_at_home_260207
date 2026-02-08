@@ -29,7 +29,10 @@ selector_collector_ver2/
 ├── selector-core.js          # 🔍 셀렉터 생성 엔진
 ├── sidepanel.html            # 🎛️ 사이드패널 UI 마크업
 ├── sidepanel.css             # 🎨 사이드패널 스타일
-└── sidepanel.js              # ⚙️ 사이드패널 로직
+├── sidepanel.js              # ⚙️ 사이드패널 로직
+├── dashboard.html            # 📊 대시보드 UI 마크업
+├── dashboard.css             # 🎨 대시보드 스타일
+└── dashboard.js              # 📊 대시보드 로직 (파일 관리/편집/이동)
 ```
 
 ## 📝 파일 설명
@@ -45,6 +48,9 @@ selector_collector_ver2/
 | `sidepanel.html` | UI | 사이드패널 HTML 마크업 |
 | `sidepanel.js` | UI로직 | 사이드패널 상호작용 및 상태 관리 |
 | `sidepanel.css` | 스타일 | 사이드패널 시각 스타일 |
+| `dashboard.html` | UI | 대시보드 HTML 마크업 (별도 페이지) |
+| `dashboard.js` | 대시보드 | JSON 파일 관리, 편집, 드래그 앤 드롭 이동 |
+| `dashboard.css` | 스타일 | 대시보드 시각 스타일 (GitHub Dark 테마) |
 
 ### 유틸리티 라이브러리
 
@@ -63,6 +69,7 @@ selector_collector_ver2/
 
 ## 🔄 데이터 흐름
 
+### 셀렉터 수집 흐름
 ```
 사용자 클릭
     ↓
@@ -77,6 +84,25 @@ sidepanel.js (UI 업데이트, 히스토리 저장)
 저장소
   ├─ IndexedDB (idb-helper.js)
   └─ 파일 시스템 (fs-storage.js)
+```
+
+### 대시보드 관리 흐름
+```
+사용자 "Dashboard" 버튼 클릭
+    ↓
+sidepanel.js (chrome.tabs.create)
+    ↓
+dashboard.html/js 열림
+    ↓
+fs-storage.js (listJsonFiles, readJson)
+    ↓
+파일 시스템에서 JSON 파일 목록 로드
+    ↓
+사용자 편집/이동/삭제
+    ↓
+fs-storage.js (saveJson, deleteFile)
+    ↓
+파일 시스템에 저장
 ```
 
 ## 🔌 확장 프로그램 구조
@@ -113,12 +139,26 @@ sidepanel.js (UI 업데이트, 히스토리 저장)
 
 ## 🚀 실행 흐름 (사용자 관점)
 
+### 셀렉터 수집 흐름
 1. 확장 프로그램 활성화
 2. 사이드패널에서 "Start Collecting" 클릭
 3. 웹페이지에서 요소 클릭
 4. 각 클릭마다 모든 가능한 셀렉터 자동 수집
 5. 히스토리에서 검토
 6. "Save" 버튼으로 JSON 파일로 내보내기
+
+### 대시보드 관리 흐름
+1. 사이드패널에서 "Dashboard" 버튼 클릭
+2. 새 탭에서 대시보드 페이지 열림
+3. 저장된 JSON 파일 목록 확인
+4. 파일 열기:
+   - 개별 entry 수정 (셀렉터 값, 메타데이터)
+   - entry 삭제, 순서 변경
+   - 수정 후 "Save" 버튼 클릭
+5. "Move Mode" 사용:
+   - 두 JSON 파일을 나란히 열기
+   - 드래그 앤 드롭으로 entry 이동/복사
+   - "Save Both" 버튼으로 저장
 
 ## 📌 주요 개념
 

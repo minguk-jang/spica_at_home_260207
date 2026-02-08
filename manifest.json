@@ -3,7 +3,7 @@
   "name": "Selector Collector",
   "version": "2.0.0",
   "description": "클릭한 웹 요소의 모든 CSS/XPath 셀렉터를 수집하고 검증합니다",
-  "permissions": ["activeTab", "sidePanel", "scripting", "storage"],
+  "permissions": ["activeTab", "sidePanel", "scripting", "storage", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
