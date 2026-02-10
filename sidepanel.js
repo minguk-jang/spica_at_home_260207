@@ -310,10 +310,24 @@ function updateHistoryUI() {
         const date = new Date(entry.elementInfo.timestamp);
         time.textContent = date.toLocaleTimeString();
 
-        div.appendChild(time); // Float right, so append first or handle with flex
+        // 개별 삭제 버튼
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'history-delete-btn';
+        deleteBtn.textContent = '\u00d7';
+        deleteBtn.title = '이 항목 삭제';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 하이라이트 동작 방지
+            history.splice(index, 1);
+            updateHistoryUI();
+            saveHistoryToStorage();
+            updateSaveButton();
+        });
+
+        div.appendChild(deleteBtn);
+        div.appendChild(time);
         div.appendChild(tag);
         div.appendChild(detail);
-        
+
         historyList.appendChild(div);
     });
 }

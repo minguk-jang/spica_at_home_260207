@@ -95,9 +95,6 @@
         // Ignore clicks on our own UI
         if (e.target.closest('.__sc-status-bar')) return;
 
-        e.preventDefault();
-        e.stopPropagation();
-
         clearHighlight();
 
         e.target.classList.add('__sc-highlight');
